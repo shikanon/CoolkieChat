@@ -12,6 +12,8 @@ import { loadJoinInfo } from '@/utils/imStorage'
 import { uploadFile } from '@/utils/upload'
 import { extractVideoThumbnail } from '@/utils/videoThumb'
 
+import { convertHeicToJpeg, isHeic } from '@/utils/heic'
+
 export default function Chat() {
   const nav = useNavigate()
   const joinInfo = useMemo(() => loadJoinInfo(), [])
@@ -31,8 +33,9 @@ export default function Chat() {
   } = useChatSession(joinInfo)
 
   const [draft, setDraft] = useState('')
-  const [pendingUpload, setPendingUpload] = useState<null | { file: File; kind: 'image' | 'video' }>(null)
+  const [pendingUpload, setPendingUpload] = useState<null | { file: File | Blob; kind: 'image' | 'video'; originalName?: string }>(null)
   const [uploading, setUploading] = useState(false)
+  const [converting, setConverting] = useState(false)
   const [preview, setPreview] = useState<null | { type: 'image' | 'video'; url: string; title: string }>(null)
 
   const peerName = joinInfo?.peerName || ''
@@ -58,8 +61,8 @@ export default function Chat() {
     }
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = kind === 'image' ? 'image/*' : 'video/*'
-    input.onchange = () => {
+    input.accept = kind === 'image' ? 'image/*, .heic, .heif' : 'video/*'
+    input.onchange = async () => {
       const file = input.files?.[0]
       if (!file) return
       if (file.size > 50 * 1024 * 1024) {
@@ -67,7 +70,22 @@ export default function Chat() {
         setTimeout(() => setToast(''), 1500)
         return
       }
-      setPendingUpload({ file, kind })
+
+      if (kind === 'image' && isHeic(file)) {
+        setConverting(true)
+        try {
+          const converted = await convertHeicToJpeg(file)
+          setPendingUpload({ file: converted, kind, originalName: file.name })
+        } catch (e) {
+          console.error(e)
+          setToast('图片格式转换失败')
+          setTimeout(() => setToast(''), 1500)
+        } finally {
+          setConverting(false)
+        }
+      } else {
+        setPendingUpload({ file, kind })
+      }
     }
     input.click()
   }
@@ -90,14 +108,21 @@ export default function Chat() {
     if (!canSend) return
     setUploading(true)
     try {
-      const { file, kind } = pendingUpload
-      const uploaded = await uploadFile(file, file.name)
+      const { file, kind, originalName } = pendingUpload
+      let fileName = originalName || (file as File).name || (kind === 'image' ? 'image.jpg' : 'video.mp4')
+
+      // If it was HEIC, it's now converted to JPEG, so change the extension
+      if (kind === 'image' && (fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif'))) {
+        fileName = fileName.replace(/\.(heic|heif)$/i, '.jpg')
+      }
+
+      const uploaded = await uploadFile(file, fileName)
 
       let thumbUrl: string | undefined
       if (kind === 'video') {
-        const thumb = await extractVideoThumbnail(file)
+        const thumb = await extractVideoThumbnail(file as File)
         if (thumb) {
-          const thumbUploaded = await uploadFile(thumb, `${file.name}.jpg`)
+          const thumbUploaded = await uploadFile(thumb, `${fileName}.jpg`)
           thumbUrl = thumbUploaded.url
         }
       }
@@ -113,8 +138,8 @@ export default function Chat() {
   }
 
   return (
-    <div className="h-dvh w-full bg-zinc-50 text-zinc-900">
-      <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col">
+    <div className="h-dvh w-full bg-gradient-to-br from-sky-50 via-white to-rose-50 text-slate-800 selection:bg-rose-100">
+      <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col border-x border-slate-200/50 bg-white/40 backdrop-blur-md">
         <ChatHeader peerName={peerName} connected={status === 'connected'} onBack={() => nav('/')} onClear={onClear} />
         <ConnectionBanner visible={status !== 'connected'} />
         <MessageList
@@ -136,6 +161,15 @@ export default function Chat() {
       </div>
 
       <Toast text={toast} />
+
+      {converting ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/30 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-2xl bg-white p-8 shadow-xl border border-slate-200">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-sky-200 border-t-rose-400" />
+            <div className="text-sm font-medium text-slate-600">正在处理素材...</div>
+          </div>
+        </div>
+      ) : null}
 
       {pendingUpload ? (
         <MediaSendModal

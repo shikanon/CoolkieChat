@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { UiMessage } from '@/utils/imTypes'
 import MessageBubble from './MessageBubble'
+import { Heart } from 'lucide-react'
 
 export default function MessageList({
   listRef,
@@ -23,15 +24,22 @@ export default function MessageList({
     requestAnimationFrame(() => {
       el.scrollTop = el.scrollHeight
     })
-  }, [listRef])
+  }, [listRef, messages])
 
   return (
-    <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4">
+    <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
       {messages.length === 0 ? (
-        <div className="mx-auto mt-10 max-w-sm text-center text-sm text-zinc-500">通道已建立，可开始聊天</div>
+        <div className="mx-auto mt-20 max-w-xs text-center space-y-4">
+          <div className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white/50 border border-slate-200/60 shadow-sm">
+            <Heart className="h-5 w-5 text-rose-400 fill-rose-100" />
+          </div>
+          <p className="text-[13px] text-slate-500 font-light leading-relaxed">
+            私密频道已开启。把这里当成你们专属的树洞吧。
+          </p>
+        </div>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="space-y-4 max-w-4xl mx-auto">
         {messages.map((m) => (
           <MessageBubble
             key={m.clientMsgId}
@@ -46,4 +54,3 @@ export default function MessageList({
     </div>
   )
 }
-

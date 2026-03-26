@@ -43,7 +43,8 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
     socket.emit('channel:join', joinInfo, ((res) => {
       if (!res?.ok) {
-        setToast(res?.message || '匹配失败，请检查名字或暗号是否正确')
+        const msg = res && 'message' in res ? String((res as { message?: string }).message || '') : ''
+        setToast(msg || '匹配失败，请检查名字或暗号是否正确')
         setTimeout(() => setToast(''), 2000)
         setJoinFailed(true)
         return

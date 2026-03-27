@@ -21,6 +21,33 @@ export default function MessageBubble({
   onJumpTo: (id: string) => void
 }) {
   const m = message
+
+  // Function to detect and wrap URLs in <a> tags
+  const renderTextWithLinks = (text: string) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const parts = text.split(urlRegex)
+    return parts.map((part, i) => {
+      if (part.match(urlRegex)) {
+        return (
+          <a
+            key={i}
+            href={part}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "underline underline-offset-4 decoration-current/40 hover:decoration-current transition-all",
+              isSelf ? "text-white font-medium" : "text-sky-600 font-medium"
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {part}
+          </a>
+        )
+      }
+      return part
+    })
+  }
+
   return (
     <div className={cn('flex w-full mb-1 animate-in fade-in slide-in-from-bottom-1 duration-300', isSelf ? 'justify-end' : 'justify-start')} id={`msg-${m.id}`}>
       <div
@@ -57,7 +84,7 @@ export default function MessageBubble({
         )}
         {m.type === 'text' ? (
           <div className="whitespace-pre-wrap break-words leading-relaxed tracking-wide font-light text-[14.5px]">
-            {m.text}
+            {renderTextWithLinks(m.text || '')}
           </div>
         ) : null}
 

@@ -30,7 +30,7 @@ export default function Home() {
   const [selfName, setSelfName] = useState(last.selfName)
   const [peerName, setPeerName] = useState(last.peerName)
   const [passphrase, setPassphrase] = useState(last.passphrase)
-  const [showPass, setShowPass] = useState(false)
+  const [showPass, setShowPass] = useState(true)
   const [error, setError] = useState('')
 
   const passOk = passphrase.length >= 2 && passphrase.length <= 20

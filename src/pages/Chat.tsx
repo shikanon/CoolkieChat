@@ -106,6 +106,51 @@ export default function Chat() {
     await clearChannel()
   }
 
+  const onExport = () => {
+    if (!messages.length) {
+      setToast('暂无聊天记录可导出')
+      setTimeout(() => setToast(''), 1500)
+      return
+    }
+
+    try {
+      const exportData = {
+        version: '1.0',
+        exportTime: new Date().toISOString(),
+        peerName,
+        selfName,
+        messages: messages.map(m => ({
+          id: m.id,
+          senderName: m.senderName,
+          type: m.type,
+          text: m.text,
+          mediaUrl: m.mediaUrl,
+          thumbUrl: m.thumbUrl,
+          createdAtServer: m.createdAtServer,
+          quote: m.quote,
+        })),
+      }
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+      a.href = url
+      a.download = `CoolkieChat_Memories_${timestamp}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+
+      setToast('导出成功，请妥善保存')
+      setTimeout(() => setToast(''), 1500)
+    } catch (e) {
+      console.error('Export failed:', e)
+      setToast('导出失败')
+      setTimeout(() => setToast(''), 1500)
+    }
+  }
+
   const onConfirmMedia = async () => {
     if (!pendingUpload || uploading) return
     if (!canSend) return
@@ -153,7 +198,7 @@ export default function Chat() {
   return (
     <div className="h-dvh w-full bg-gradient-to-br from-sky-50 via-white to-rose-50 text-slate-800 selection:bg-rose-100">
       <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col border-x border-slate-200/50 bg-white/40 backdrop-blur-md">
-        <ChatHeader peerName={peerName} connected={status === 'connected'} onBack={() => nav('/')} onClear={onClear} />
+        <ChatHeader peerName={peerName} connected={status === 'connected'} onBack={() => nav('/')} onClear={onClear} onExport={onExport} />
         <ConnectionBanner visible={status !== 'connected'} />
         <MessageList
           listRef={listRef}

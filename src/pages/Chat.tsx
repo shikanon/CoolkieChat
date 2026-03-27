@@ -11,6 +11,7 @@ import { useChatSession } from '@/hooks/useChatSession'
 import { loadJoinInfo } from '@/utils/imStorage'
 import { uploadFile } from '@/utils/upload'
 import { extractVideoThumbnail } from '@/utils/videoThumb'
+import { type ServerMessage } from '@/utils/imTypes'
 
 import { convertHeicToJpeg, isHeic } from '@/utils/heic'
 

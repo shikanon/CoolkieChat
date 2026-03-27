@@ -1,4 +1,4 @@
-import { Loader2, Video as VideoIcon, CheckCheck } from 'lucide-react'
+import { Loader2, Video as VideoIcon, CheckCheck, Reply, Quote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UiMessage } from '@/utils/imTypes'
 import { formatTime } from '@/utils/time'
@@ -9,16 +9,20 @@ export default function MessageBubble({
   onOpenImage,
   onOpenVideo,
   onRetry,
+  onQuote,
+  onJumpTo,
 }: {
   message: UiMessage
   isSelf: boolean
   onOpenImage: (url: string) => void
   onOpenVideo: (url: string) => void
   onRetry: () => void
+  onQuote: (m: UiMessage) => void
+  onJumpTo: (id: string) => void
 }) {
   const m = message
   return (
-    <div className={cn('flex w-full mb-1', isSelf ? 'justify-end' : 'justify-start')}>
+    <div className={cn('flex w-full mb-1 animate-in fade-in slide-in-from-bottom-1 duration-300', isSelf ? 'justify-end' : 'justify-start')} id={`msg-${m.id}`}>
       <div
         className={cn(
           'group relative max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm transition-all',
@@ -27,6 +31,30 @@ export default function MessageBubble({
             : 'bg-white/80 text-slate-800 border border-slate-200/70 rounded-tl-none mr-12 shadow-slate-200/50 backdrop-blur-sm',
         )}
       >
+        {m.quote && (
+          <div 
+            onClick={() => onJumpTo(m.quote!.id)}
+            className={cn(
+              "mb-2.5 cursor-pointer rounded-xl border-l-2 px-3 py-2 transition-all hover:opacity-80 active:scale-[0.98]",
+              isSelf 
+                ? "bg-white/10 border-white/40 text-sky-50" 
+                : "bg-slate-50 border-slate-300 text-slate-500"
+            )}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-1.5">
+                <Quote className={cn("h-2.5 w-2.5", isSelf ? "text-white/60" : "text-slate-400")} />
+                <span className="text-[10px] font-bold uppercase tracking-widest">{m.quote.senderName}</span>
+              </div>
+              <span className="text-[9px] opacity-50 font-light">
+                {new Date(m.quote.createdAtServer).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <div className="text-[11px] line-clamp-2 font-light leading-relaxed italic opacity-90">
+              {m.quote.text}
+            </div>
+          </div>
+        )}
         {m.type === 'text' ? (
           <div className="whitespace-pre-wrap break-words leading-relaxed tracking-wide font-light text-[14.5px]">
             {m.text}
@@ -80,6 +108,24 @@ export default function MessageBubble({
           "mt-1.5 flex items-center gap-2 text-[10px] font-light tracking-tight transition-opacity opacity-0 group-hover:opacity-100",
           isSelf ? "justify-end text-white/70" : "justify-start text-slate-400"
         )}>
+          {!isSelf && (
+            <button 
+              onClick={() => onQuote(m)}
+              className="mr-auto p-1 rounded-full hover:bg-slate-200 text-slate-400 transition-colors"
+              aria-label="回复"
+            >
+              <Reply className="h-3 w-3" />
+            </button>
+          )}
+          {isSelf && (
+             <button 
+               onClick={() => onQuote(m)}
+               className="ml-0 p-1 rounded-full hover:bg-sky-400/50 text-white/60 transition-colors"
+               aria-label="回复"
+             >
+               <Reply className="h-3 w-3" />
+             </button>
+          )}
           <span>{formatTime(m.createdAtServer)}</span>
           {isSelf && (
             <div className="flex items-center">

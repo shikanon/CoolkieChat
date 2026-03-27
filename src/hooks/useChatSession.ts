@@ -107,7 +107,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
   const canSend = status === 'connected' && Boolean(channelId)
 
-  const sendText = (text: string) => {
+  const sendText = (text: string, quote?: ServerMessage['quote']) => {
     const trimmed = text.trim()
     if (!trimmed) return
     if (!canSend) {
@@ -124,6 +124,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
       senderName: selfName,
       type: 'text',
       text: trimmed,
+      quote,
       createdAtClient: Date.now(),
       createdAtServer: Date.now(),
       status: 'sending',
@@ -138,6 +139,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
         clientMsgId,
         type: 'text',
         text: trimmed,
+        quote,
         createdAtClient: optimistic.createdAtClient,
       },
       ((res) => {
@@ -156,6 +158,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     thumbUrl?: string
     mime?: string
     size?: number
+    quote?: ServerMessage['quote']
   }) => {
     if (!canSend) {
       setToast('服务器连接失败，请稍后重试')
@@ -174,6 +177,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
       thumbUrl: payload.thumbUrl,
       mime: payload.mime,
       size: payload.size,
+      quote: payload.quote,
       createdAtClient: Date.now(),
       createdAtServer: Date.now(),
       status: 'sending',
@@ -191,6 +195,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
         thumbUrl: payload.thumbUrl,
         mime: payload.mime,
         size: payload.size,
+        quote: payload.quote,
         createdAtClient: optimistic.createdAtClient,
       },
       ((res) => {
@@ -219,6 +224,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
         thumbUrl: m.thumbUrl,
         mime: m.mime,
         size: m.size,
+        quote: m.quote,
         createdAtClient: m.createdAtClient,
       },
       ((res) => {

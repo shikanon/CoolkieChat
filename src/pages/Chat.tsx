@@ -33,6 +33,7 @@ export default function Chat() {
   } = useChatSession(joinInfo)
 
   const [draft, setDraft] = useState('')
+  const [quote, setQuote] = useState<ServerMessage['quote'] | undefined>(undefined)
   const [pendingUpload, setPendingUpload] = useState<null | { file: File | Blob; kind: 'image' | 'video'; originalName?: string }>(null)
   const [uploading, setUploading] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -92,8 +93,9 @@ export default function Chat() {
 
   const onSendText = () => {
     const text = draft
-    sendText(text)
+    sendText(text, quote)
     setDraft('')
+    setQuote(undefined)
   }
 
   const onClear = async () => {
@@ -127,14 +129,24 @@ export default function Chat() {
         }
       }
 
-      sendMedia({ type: kind, mediaUrl: uploaded.url, thumbUrl, mime: uploaded.mime, size: uploaded.size })
+      sendMedia({ type: kind, mediaUrl: uploaded.url, thumbUrl, mime: uploaded.mime, size: uploaded.size, quote })
       setPendingUpload(null)
+      setQuote(undefined)
     } catch {
       setToast('上传或发送失败')
       setTimeout(() => setToast(''), 1500)
     } finally {
       setUploading(false)
     }
+  }
+
+  const onQuote = (m: ServerMessage) => {
+    setQuote({
+      id: m.id,
+      senderName: m.senderName,
+      text: m.text || (m.type === 'image' ? '[图片]' : '[视频]'),
+      createdAtServer: m.createdAtServer,
+    })
   }
 
   return (
@@ -149,14 +161,17 @@ export default function Chat() {
           onOpenImage={(url) => setPreview({ type: 'image', url, title: '图片预览' })}
           onOpenVideo={(url) => setPreview({ type: 'video', url, title: '视频预览' })}
           onRetry={retryMessage}
+          onQuote={onQuote}
         />
         <Composer
           canSend={canSend}
           draft={draft}
+          quote={quote}
           onDraftChange={setDraft}
           onSendText={onSendText}
           onPickImage={() => onPickFile('image')}
           onPickVideo={() => onPickFile('video')}
+          onClearQuote={() => setQuote(undefined)}
         />
       </div>
 

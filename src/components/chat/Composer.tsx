@@ -1,23 +1,55 @@
-import { Image as ImageIcon, Send, Video as VideoIcon } from 'lucide-react'
+import { Image as ImageIcon, Send, Video as VideoIcon, X, Quote } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { ServerMessage } from '@/utils/imTypes'
 
 export default function Composer({
   canSend,
   draft,
+  quote,
   onDraftChange,
   onSendText,
   onPickImage,
   onPickVideo,
+  onClearQuote,
 }: {
   canSend: boolean
   draft: string
+  quote?: ServerMessage['quote']
   onDraftChange: (v: string) => void
   onSendText: () => void
   onPickImage: () => void
   onPickVideo: () => void
+  onClearQuote: () => void
 }) {
   return (
-    <div className="border-t border-slate-200/50 bg-white/60 backdrop-blur-md p-4 pb-8 md:pb-4">
+    <div className="border-t border-slate-200/50 bg-white/60 backdrop-blur-md p-4 pb-8 md:pb-4 transition-all">
+      {quote && (
+        <div className="max-w-4xl mx-auto mb-3 animate-in slide-in-from-bottom-2 duration-300">
+          <div className="relative flex items-start gap-3 rounded-2xl bg-slate-100/80 px-4 py-3 border border-slate-200/60 shadow-sm group">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Quote className="h-3 w-3 text-rose-400" />
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                  回复 {quote.senderName}
+                </span>
+                <span className="text-[9px] text-slate-400 font-light ml-auto">
+                  {new Date(quote.createdAtServer).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="text-xs text-slate-600 truncate font-light leading-relaxed italic pr-6">
+                {quote.text}
+              </div>
+            </div>
+            <button 
+              onClick={onClearQuote}
+              className="absolute top-2.5 right-2.5 p-1.5 rounded-xl hover:bg-white text-slate-400 hover:text-rose-500 transition-all shadow-sm border border-transparent hover:border-slate-100"
+              aria-label="取消回复"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-end gap-3 max-w-4xl mx-auto">
         <div className="flex gap-2 mb-0.5">
           <button

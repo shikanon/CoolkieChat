@@ -25,6 +25,12 @@ type SendPayload = {
   mime?: string
   size?: number
   createdAtClient?: number
+  quote?: {
+    id: string
+    senderName: string
+    text: string
+    createdAtServer: number
+  }
 }
 
 type SendAckOk = { ok: true; serverMsgId: string; createdAtServer: number }
@@ -122,6 +128,7 @@ export function initSocket(httpServer: HttpServer) {
       const mime = normalizeString(payload?.mime)
       const size = typeof payload?.size === 'number' ? payload.size : undefined
       const createdAtClient = typeof payload?.createdAtClient === 'number' ? payload.createdAtClient : undefined
+      const quote = payload?.quote
 
       if (type === 'text' && !text) {
         ack?.({ ok: false, message: '发送失败' })
@@ -145,6 +152,7 @@ export function initSocket(httpServer: HttpServer) {
         size,
         createdAtClient,
         createdAtServer: Date.now(),
+        quote,
       }
 
       await appendMessage(message)

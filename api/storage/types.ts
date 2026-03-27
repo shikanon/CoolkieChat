@@ -22,5 +22,11 @@ export type MessageRecord = {
   size?: number
   createdAtClient?: number
   createdAtServer: number
+  quote?: {
+    id: string
+    senderName: string
+    text: string
+    createdAtServer: number
+  }
 }
 

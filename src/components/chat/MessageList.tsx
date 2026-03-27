@@ -10,6 +10,7 @@ export default function MessageList({
   onOpenImage,
   onOpenVideo,
   onRetry,
+  onQuote,
 }: {
   listRef: React.RefObject<HTMLDivElement | null>
   messages: UiMessage[]
@@ -17,6 +18,7 @@ export default function MessageList({
   onOpenImage: (url: string) => void
   onOpenVideo: (url: string) => void
   onRetry: (m: UiMessage) => void
+  onQuote: (m: UiMessage) => void
 }) {
   useEffect(() => {
     const el = listRef.current
@@ -25,6 +27,17 @@ export default function MessageList({
       el.scrollTop = el.scrollHeight
     })
   }, [listRef, messages])
+
+  const onJumpTo = (id: string) => {
+    const el = document.getElementById(`msg-${id}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('ring-4', 'ring-rose-200', 'ring-offset-4', 'rounded-2xl', 'transition-all', 'duration-500', 'z-20')
+      setTimeout(() => {
+        el.classList.remove('ring-4', 'ring-rose-200', 'ring-offset-4', 'z-20')
+      }, 2000)
+    }
+  }
 
   return (
     <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-6 scroll-smooth">
@@ -48,6 +61,8 @@ export default function MessageList({
             onOpenImage={onOpenImage}
             onOpenVideo={onOpenVideo}
             onRetry={() => onRetry(m)}
+            onQuote={onQuote}
+            onJumpTo={onJumpTo}
           />
         ))}
       </div>

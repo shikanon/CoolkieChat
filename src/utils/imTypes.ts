@@ -13,6 +13,12 @@ export type ServerMessage = {
   size?: number
   createdAtClient?: number
   createdAtServer: number
+  quote?: {
+    id: string
+    senderName: string
+    text: string
+    createdAtServer: number
+  }
 }
 
 export type UiMessage = ServerMessage & {

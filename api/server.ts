@@ -8,7 +8,7 @@ import { initSocket } from './socket.js'
 /**
  * start server with port
  */
-const PORT = process.env.PORT || 5411;
+const PORT = process.env.PORT || 5410;
 
 const httpServer = createServer(app)
 initSocket(httpServer)

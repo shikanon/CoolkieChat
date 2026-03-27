@@ -45,7 +45,7 @@ npm install
 npm run dev
 ```
 
-前端将在 `http://localhost:5410` 启动，后端在 `http://localhost:5411` 启动。
+前端将在 `http://localhost:5410` 启动，后端 API 服务在 `http://localhost:5411` 启动。
 
 ### 生产环境
 
@@ -53,6 +53,8 @@ npm run dev
 npm run build
 npm start
 ```
+
+服务将在 `http://localhost:5410` 启动（包含前端静态资源和后端 API）。
 
 ## 使用说明
 

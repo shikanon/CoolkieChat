@@ -157,9 +157,20 @@ export default function MessageBubble({
           {isSelf && (
             <div className="flex items-center">
               {m.status === 'sending' ? (
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-white/40">发送中...</span>
+                  <Loader2 className="h-2.5 w-2.5 animate-spin text-white/60" />
+                </div>
               ) : m.status === 'failed' ? (
-                <button onClick={onRetry} className="text-rose-200 underline underline-offset-2">重试</button>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] text-rose-200 font-medium">未发送到服务端</span>
+                  <button 
+                    onClick={onRetry} 
+                    className="text-white bg-rose-500/40 px-1.5 py-0.5 rounded-md hover:bg-rose-500/60 transition-colors"
+                  >
+                    重试
+                  </button>
+                </div>
               ) : (
                 <CheckCheck className="h-3 w-3 opacity-60" />
               )}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { nanoid } from 'nanoid'
 import type { JoinInfo, ServerMessage, UiMessage } from '@/utils/imTypes'
@@ -17,6 +17,10 @@ type ClearAckOk = { ok: true }
 type ClearAckFail = { ok: false; message: string }
 type ClearAck = (res: ClearAckOk | ClearAckFail) => void
 
+const HEARTBEAT_INTERVAL = 10000 // 10s
+const RETRY_MAX_ATTEMPTS = 5
+const INITIAL_RETRY_DELAY = 1000 // 1s
+
 export function useChatSession(joinInfo: JoinInfo | null) {
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
   const [channelId, setChannelId] = useState('')
@@ -26,13 +30,27 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
   const socketRef = useRef<Socket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const retryTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
 
   const selfName = useMemo(() => joinInfo?.selfName || '', [joinInfo])
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(retryTimersRef.current).forEach(clearTimeout)
+    }
+  }, [])
 
   useEffect(() => {
     if (!joinInfo) return
 
-    const socket = io({ autoConnect: true })
+    const socket = io({ 
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      timeout: 20000,
+    })
     socketRef.current = socket
 
     const onConnect = () => setStatus('connected')
@@ -40,6 +58,17 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
     socket.on('connect', onConnect)
     socket.on('disconnect', onDisconnect)
+
+    // Heartbeat logic
+    const heartbeatTimer = setInterval(() => {
+      if (socket.connected) {
+        socket.emit('heartbeat', { timestamp: Date.now() }, (res: { ok: boolean }) => {
+          if (!res?.ok) {
+            console.warn('Heartbeat failed')
+          }
+        })
+      }
+    }, HEARTBEAT_INTERVAL)
 
     socket.emit('channel:join', joinInfo, ((res) => {
       if (!res?.ok) {
@@ -98,6 +127,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     })
 
     return () => {
+      clearInterval(heartbeatTimer)
       socket.off('connect', onConnect)
       socket.off('disconnect', onDisconnect)
       socket.disconnect()
@@ -107,15 +137,75 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
   const canSend = status === 'connected' && Boolean(channelId)
 
-  const sendText = (text: string, quote?: ServerMessage['quote']) => {
-    const trimmed = text.trim()
-    if (!trimmed) return
-    if (!canSend) {
-      setToast('服务器连接失败，请稍后重试')
-      setTimeout(() => setToast(''), 1500)
+  const doSendWithRetry = useCallback((m: UiMessage, attempt = 0) => {
+    // Clear any existing timer for this message
+    if (retryTimersRef.current[m.clientMsgId]) {
+      clearTimeout(retryTimersRef.current[m.clientMsgId])
+      delete retryTimersRef.current[m.clientMsgId]
+    }
+
+    if (!socketRef.current || !socketRef.current.connected) {
+      // If not connected, retry later with backoff
+      if (attempt < RETRY_MAX_ATTEMPTS) {
+        const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
+        console.log(`Socket not connected, retrying message ${m.clientMsgId} in ${delay}ms (attempt ${attempt + 1})`)
+        retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
+      } else {
+        setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
+      }
       return
     }
 
+    const payload = {
+      channelId: m.channelId,
+      clientMsgId: m.clientMsgId,
+      type: m.type,
+      text: m.text,
+      mediaUrl: m.mediaUrl,
+      thumbUrl: m.thumbUrl,
+      mime: m.mime,
+      size: m.size,
+      quote: m.quote,
+      createdAtClient: m.createdAtClient,
+    }
+
+    // Set a timeout for the acknowledgement
+    const ackTimeout = setTimeout(() => {
+      console.warn(`Ack timeout for message ${m.clientMsgId}, retrying (attempt ${attempt + 1})...`)
+      if (attempt < RETRY_MAX_ATTEMPTS) {
+        doSendWithRetry(m, attempt + 1)
+      } else {
+        setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
+      }
+    }, 5000)
+
+    socketRef.current.emit('message:send', payload, ((res) => {
+      clearTimeout(ackTimeout)
+      
+      // If we got an ack, we can stop any pending retry for this message
+      if (retryTimersRef.current[m.clientMsgId]) {
+        clearTimeout(retryTimersRef.current[m.clientMsgId])
+        delete retryTimersRef.current[m.clientMsgId]
+      }
+
+      if (!res?.ok) {
+        console.error(`Message ${m.clientMsgId} send failed: ${res?.message || 'unknown error'}`)
+        if (attempt < RETRY_MAX_ATTEMPTS) {
+          const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
+          retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
+        } else {
+          setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
+        }
+        return
+      }
+      setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'sent' } : x)))
+    }) as SendAck)
+  }, [])
+
+  const sendText = (text: string, quote?: ServerMessage['quote']) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
+    
     const clientMsgId = nanoid()
     const optimistic: UiMessage = {
       id: clientMsgId,
@@ -131,25 +221,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     }
 
     setMessages((prev) => [...prev, optimistic])
-
-    socketRef.current?.emit(
-      'message:send',
-      {
-        channelId,
-        clientMsgId,
-        type: 'text',
-        text: trimmed,
-        quote,
-        createdAtClient: optimistic.createdAtClient,
-      },
-      ((res) => {
-        if (!res?.ok) {
-          setMessages((prev) => prev.map((m) => (m.clientMsgId === clientMsgId ? { ...m, status: 'failed' } : m)))
-          return
-        }
-        setMessages((prev) => prev.map((m) => (m.clientMsgId === clientMsgId ? { ...m, status: 'sent' } : m)))
-      }) as SendAck,
-    )
+    doSendWithRetry(optimistic)
   }
 
   const sendMedia = (payload: {
@@ -160,12 +232,6 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     size?: number
     quote?: ServerMessage['quote']
   }) => {
-    if (!canSend) {
-      setToast('服务器连接失败，请稍后重试')
-      setTimeout(() => setToast(''), 1500)
-      return { clientMsgId: '', ok: false }
-    }
-
     const clientMsgId = nanoid()
     const optimistic: UiMessage = {
       id: clientMsgId,
@@ -184,57 +250,14 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     }
 
     setMessages((prev) => [...prev, optimistic])
-
-    socketRef.current?.emit(
-      'message:send',
-      {
-        channelId,
-        clientMsgId,
-        type: payload.type,
-        mediaUrl: payload.mediaUrl,
-        thumbUrl: payload.thumbUrl,
-        mime: payload.mime,
-        size: payload.size,
-        quote: payload.quote,
-        createdAtClient: optimistic.createdAtClient,
-      },
-      ((res) => {
-        if (!res?.ok) {
-          setMessages((prev) => prev.map((m) => (m.clientMsgId === clientMsgId ? { ...m, status: 'failed' } : m)))
-          return
-        }
-        setMessages((prev) => prev.map((m) => (m.clientMsgId === clientMsgId ? { ...m, status: 'sent' } : m)))
-      }) as SendAck,
-    )
+    doSendWithRetry(optimistic)
 
     return { clientMsgId, ok: true }
   }
 
   const retryMessage = (m: UiMessage) => {
-    if (!canSend) return
     setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'sending' } : x)))
-    socketRef.current?.emit(
-      'message:send',
-      {
-        channelId: m.channelId,
-        clientMsgId: m.clientMsgId,
-        type: m.type,
-        text: m.text,
-        mediaUrl: m.mediaUrl,
-        thumbUrl: m.thumbUrl,
-        mime: m.mime,
-        size: m.size,
-        quote: m.quote,
-        createdAtClient: m.createdAtClient,
-      },
-      ((res) => {
-        if (!res?.ok) {
-          setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
-          return
-        }
-        setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'sent' } : x)))
-      }) as SendAck,
-    )
+    doSendWithRetry({ ...m, status: 'sending' })
   }
 
   const clearChannel = async () => {

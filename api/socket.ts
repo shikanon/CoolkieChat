@@ -5,6 +5,18 @@ import { sha256Hex } from './storage/crypto.js'
 import { ensureStorageReady, getChannel, listMessages, upsertChannel, appendMessage, clearChannelMessages } from './storage/store.js'
 import type { ChannelRecord, MessageRecord, MessageType } from './storage/types.js'
 
+// Simple in-memory cache to prevent duplicate messages (store last 1000 IDs)
+const processedMsgIds = new Set<string>()
+const MAX_CACHE_SIZE = 1000
+
+function addToCache(id: string) {
+  processedMsgIds.add(id)
+  if (processedMsgIds.size > MAX_CACHE_SIZE) {
+    const firstItem = processedMsgIds.values().next().value
+    if (firstItem) processedMsgIds.delete(firstItem)
+  }
+}
+
 type JoinPayload = {
   selfName: string
   peerName: string
@@ -122,6 +134,15 @@ export function initSocket(httpServer: HttpServer) {
         return
       }
 
+      // Check for duplicates
+      if (processedMsgIds.has(clientMsgId)) {
+        console.log(`Duplicate message skipped: ${clientMsgId}`)
+        // Return success so client stops retrying
+        ack?.({ ok: true, serverMsgId: 'DUPLICATE', createdAtServer: Date.now() })
+        return
+      }
+      addToCache(clientMsgId)
+
       const text = normalizeString(payload?.text)
       const mediaUrl = normalizeString(payload?.mediaUrl)
       const thumbUrl = normalizeString(payload?.thumbUrl)
@@ -171,6 +192,10 @@ export function initSocket(httpServer: HttpServer) {
       await clearChannelMessages(channelId)
       io.to(channelId).emit('channel:cleared', { channelId, clearedAtServer: Date.now() })
       ack?.({ ok: true })
+    })
+
+    socket.on('heartbeat', (payload: { timestamp: number }, ack?: (res: { ok: true; timestamp: number }) => void) => {
+      ack?.({ ok: true, timestamp: payload.timestamp })
     })
   })
 

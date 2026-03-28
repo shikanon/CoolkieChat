@@ -11,7 +11,7 @@ import { initSocket } from './socket.js'
 const PORT = process.env.PORT || 5410;
 
 const httpServer = createServer(app)
-initSocket(httpServer)
+const io = initSocket(httpServer)
 
 const server = httpServer.listen(PORT, () => {
   console.log(`Server ready on port ${PORT}`);
@@ -20,20 +20,24 @@ const server = httpServer.listen(PORT, () => {
 /**
  * close server
  */
-process.on('SIGTERM', () => {
-  console.log('SIGTERM signal received');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
+const shutdown = () => {
+  console.log('Shutting down server...');
+  io.close(() => {
+    console.log('Socket.io closed');
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('SIGINT signal received');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
-});
+  // Force exit after 3 seconds
+  setTimeout(() => {
+    console.error('Forcing shutdown after 3 seconds');
+    process.exit(1);
+  }, 3000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 export default app;

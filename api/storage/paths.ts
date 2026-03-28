@@ -12,6 +12,10 @@ export function getChannelsFilePath(): string {
   return path.resolve(getDataRoot(), 'channels.json')
 }
 
+export function getDatabasePath(): string {
+  return path.resolve(getDataRoot(), 'chat.db')
+}
+
 export function getMessagesDir(): string {
   return path.resolve(getDataRoot(), 'messages')
 }

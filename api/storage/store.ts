@@ -1,77 +1,107 @@
 import fs from 'fs/promises'
-import path from 'path'
-import { getChannelMessagesPath, getChannelsFilePath, getDataRoot, getMessagesDir } from './paths.js'
+import Database from 'better-sqlite3'
+import { getDataRoot, getDatabasePath, getUploadsDir } from './paths.js'
 import type { ChannelRecord, MessageRecord } from './types.js'
+
+let db: Database.Database | null = null
 
 async function ensureDir(dirPath: string) {
   await fs.mkdir(dirPath, { recursive: true })
 }
 
-async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
-  try {
-    const raw = await fs.readFile(filePath, 'utf8')
-    return JSON.parse(raw) as T
-  } catch {
-    return fallback
-  }
-}
-
-async function writeJsonFile(filePath: string, data: unknown): Promise<void> {
-  const dir = path.dirname(filePath)
-  await ensureDir(dir)
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8')
-}
-
 export async function ensureStorageReady(): Promise<void> {
   await ensureDir(getDataRoot())
-  await ensureDir(getMessagesDir())
+  await ensureDir(getUploadsDir())
+
+  if (!db) {
+    db = new Database(getDatabasePath())
+    db.pragma('journal_mode = WAL')
+
+    // Create tables
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS channels (
+        channelId TEXT PRIMARY KEY,
+        nameA TEXT NOT NULL,
+        nameB TEXT NOT NULL,
+        passphraseHash TEXT NOT NULL,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        channelId TEXT NOT NULL,
+        clientMsgId TEXT NOT NULL,
+        senderName TEXT NOT NULL,
+        type TEXT NOT NULL,
+        text TEXT,
+        mediaUrl TEXT,
+        thumbUrl TEXT,
+        mime TEXT,
+        size INTEGER,
+        createdAtClient INTEGER,
+        createdAtServer INTEGER NOT NULL,
+        quote JSON,
+        FOREIGN KEY (channelId) REFERENCES channels (channelId)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_messages_channelId ON messages (channelId);
+      CREATE INDEX IF NOT EXISTS idx_messages_createdAtServer ON messages (createdAtServer);
+      CREATE INDEX IF NOT EXISTS idx_messages_clientMsgId ON messages (clientMsgId);
+    `)
+  }
 }
 
 export async function getChannel(channelId: string): Promise<ChannelRecord | null> {
-  const channels = await readJsonFile<Record<string, ChannelRecord>>(getChannelsFilePath(), {})
-  return channels[channelId] ?? null
+  await ensureStorageReady()
+  const row = db!.prepare('SELECT * FROM channels WHERE channelId = ?').get(channelId) as ChannelRecord | undefined
+  return row ?? null
 }
 
 export async function upsertChannel(record: ChannelRecord): Promise<void> {
-  const channels = await readJsonFile<Record<string, ChannelRecord>>(getChannelsFilePath(), {})
-  channels[record.channelId] = record
-  await writeJsonFile(getChannelsFilePath(), channels)
+  await ensureStorageReady()
+  db!.prepare(`
+    INSERT INTO channels (channelId, nameA, nameB, passphraseHash, createdAt, updatedAt)
+    VALUES (@channelId, @nameA, @nameB, @passphraseHash, @createdAt, @updatedAt)
+    ON CONFLICT(channelId) DO UPDATE SET
+      updatedAt = excluded.updatedAt
+  `).run(record)
 }
 
 export async function listMessages(channelId: string, limit = 200): Promise<MessageRecord[]> {
-  const filePath = getChannelMessagesPath(channelId)
-  try {
-    const raw = await fs.readFile(filePath, 'utf8')
-    const lines = raw.split('\n').filter(Boolean)
-    const slice = lines.length > limit ? lines.slice(lines.length - limit) : lines
-    const parsed = slice
-      .map((line) => {
-        try {
-          return JSON.parse(line) as MessageRecord
-        } catch {
-          return null
-        }
-      })
-      .filter((v): v is MessageRecord => Boolean(v))
-    return parsed
-  } catch {
-    return []
-  }
+  await ensureStorageReady()
+  const rows = db!.prepare(`
+    SELECT * FROM messages 
+    WHERE channelId = ? 
+    ORDER BY createdAtServer ASC 
+    LIMIT ?
+  `).all(channelId, limit) as any[]
+
+  return rows.map(row => ({
+    ...row,
+    quote: row.quote ? JSON.parse(row.quote) : undefined
+  }))
 }
 
 export async function appendMessage(message: MessageRecord): Promise<void> {
   await ensureStorageReady()
-  const filePath = getChannelMessagesPath(message.channelId)
-  await fs.appendFile(filePath, `${JSON.stringify(message)}\n`, 'utf8')
+  db!.prepare(`
+    INSERT INTO messages (
+      id, channelId, clientMsgId, senderName, type, text, 
+      mediaUrl, thumbUrl, mime, size, createdAtClient, 
+      createdAtServer, quote
+    ) VALUES (
+      @id, @channelId, @clientMsgId, @senderName, @type, @text,
+      @mediaUrl, @thumbUrl, @mime, @size, @createdAtClient,
+      @createdAtServer, @quote
+    )
+  `).run({
+    ...message,
+    quote: message.quote ? JSON.stringify(message.quote) : null
+  })
 }
 
 export async function clearChannelMessages(channelId: string): Promise<void> {
   await ensureStorageReady()
-  const filePath = getChannelMessagesPath(channelId)
-  try {
-    await fs.rm(filePath)
-  } catch {
-    return
-  }
+  db!.prepare('DELETE FROM messages WHERE channelId = ?').run(channelId)
 }
-

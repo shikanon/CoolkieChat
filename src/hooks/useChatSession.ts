@@ -18,8 +18,8 @@ type ClearAckFail = { ok: false; message: string }
 type ClearAck = (res: ClearAckOk | ClearAckFail) => void
 
 const HEARTBEAT_INTERVAL = 10000 // 10s
-const RETRY_MAX_ATTEMPTS = 5
 const INITIAL_RETRY_DELAY = 1000 // 1s
+const MAX_RETRY_DELAY = 128000 // 128s
 
 export function useChatSession(joinInfo: JoinInfo | null) {
   const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
@@ -144,15 +144,15 @@ export function useChatSession(joinInfo: JoinInfo | null) {
       delete retryTimersRef.current[m.clientMsgId]
     }
 
+    const calculateDelay = (att: number) => {
+      return Math.min(INITIAL_RETRY_DELAY * Math.pow(2, att), MAX_RETRY_DELAY)
+    }
+
     if (!socketRef.current || !socketRef.current.connected) {
       // If not connected, retry later with backoff
-      if (attempt < RETRY_MAX_ATTEMPTS) {
-        const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
-        console.log(`Socket not connected, retrying message ${m.clientMsgId} in ${delay}ms (attempt ${attempt + 1})`)
-        retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
-      } else {
-        setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
-      }
+      const delay = calculateDelay(attempt)
+      console.log(`Socket not connected, retrying message ${m.clientMsgId} in ${delay}ms (attempt ${attempt + 1})`)
+      retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
       return
     }
 
@@ -171,12 +171,9 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
     // Set a timeout for the acknowledgement
     const ackTimeout = setTimeout(() => {
-      console.warn(`Ack timeout for message ${m.clientMsgId}, retrying (attempt ${attempt + 1})...`)
-      if (attempt < RETRY_MAX_ATTEMPTS) {
-        doSendWithRetry(m, attempt + 1)
-      } else {
-        setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
-      }
+      const delay = calculateDelay(attempt)
+      console.warn(`Ack timeout for message ${m.clientMsgId}, retrying in ${delay}ms (attempt ${attempt + 1})...`)
+      doSendWithRetry(m, attempt + 1)
     }, 5000)
 
     socketRef.current.emit('message:send', payload, ((res) => {
@@ -190,12 +187,8 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
       if (!res?.ok) {
         console.error(`Message ${m.clientMsgId} send failed: ${res?.message || 'unknown error'}`)
-        if (attempt < RETRY_MAX_ATTEMPTS) {
-          const delay = INITIAL_RETRY_DELAY * Math.pow(2, attempt)
-          retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
-        } else {
-          setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'failed' } : x)))
-        }
+        const delay = calculateDelay(attempt)
+        retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
         return
       }
       setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'sent' } : x)))

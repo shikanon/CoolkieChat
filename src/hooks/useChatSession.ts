@@ -185,8 +185,9 @@ export function useChatSession(joinInfo: JoinInfo | null) {
         delete retryTimersRef.current[m.clientMsgId]
       }
 
-      if (!res?.ok) {
-        console.error(`Message ${m.clientMsgId} send failed: ${res?.message || 'unknown error'}`)
+      if (!res || !res.ok) {
+        const errorMsg = (res && 'message' in res) ? res.message : 'unknown error'
+        console.error(`Message ${m.clientMsgId} send failed: ${errorMsg}`)
         const delay = calculateDelay(attempt)
         retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
         return

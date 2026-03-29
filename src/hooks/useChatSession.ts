@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { nanoid } from 'nanoid'
 import type { JoinInfo, ServerMessage, UiMessage } from '@/utils/imTypes'
-import { clearChannelCache, loadCachedMessages, saveCachedMessages } from '@/utils/imStorage'
+import { clearChannelCache, loadCachedMessages, saveCachedMessages, saveCachedMessage } from '@/utils/imStorage'
 import { isNearBottom } from '@/utils/dom'
 
 type JoinAckOk = { ok: true; channelId: string; history: ServerMessage[]; serverTime: number }
@@ -70,7 +70,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
       }
     }, HEARTBEAT_INTERVAL)
 
-    socket.emit('channel:join', joinInfo, ((res) => {
+    socket.emit('channel:join', joinInfo, (async (res) => {
       if (!res?.ok) {
         const msg = res && 'message' in res ? String((res as { message?: string }).message || '') : ''
         setToast(msg || '匹配失败，请检查名字或暗号是否正确')
@@ -82,7 +82,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
       const cid = String(res.channelId || '')
       setChannelId(cid)
 
-      const cached = loadCachedMessages(cid)
+      const cached = await loadCachedMessages(cid)
       if (cached.length) setMessages(cached)
 
       const history = (res.history as ServerMessage[] | undefined) || []
@@ -99,15 +99,16 @@ export function useChatSession(joinInfo: JoinInfo | null) {
 
     socket.on('message:new', (msg: ServerMessage) => {
       if (!msg?.channelId) return
+      const uiMsg: UiMessage = { ...msg, status: 'sent' }
       setMessages((prev) => {
         const idx = prev.findIndex((m) => m.clientMsgId === msg.clientMsgId)
         const next = [...prev]
-        if (idx >= 0) next[idx] = { ...msg, status: 'sent' }
-        else next.push({ ...msg, status: 'sent' })
+        if (idx >= 0) next[idx] = uiMsg
+        else next.push(uiMsg)
         next.sort((a, b) => a.createdAtServer - b.createdAtServer)
-        saveCachedMessages(msg.channelId, next)
         return next
       })
+      saveCachedMessage(uiMsg)
 
       const el = listRef.current
       if (el && isNearBottom(el)) {
@@ -192,7 +193,9 @@ export function useChatSession(joinInfo: JoinInfo | null) {
         retryTimersRef.current[m.clientMsgId] = setTimeout(() => doSendWithRetry(m, attempt + 1), delay)
         return
       }
-      setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? { ...x, status: 'sent' } : x)))
+      const sentMsg: UiMessage = { ...m, status: 'sent', createdAtServer: res.createdAtServer }
+      setMessages((prev) => prev.map((x) => (x.clientMsgId === m.clientMsgId ? sentMsg : x)))
+      saveCachedMessage(sentMsg)
     }) as SendAck)
   }, [])
 

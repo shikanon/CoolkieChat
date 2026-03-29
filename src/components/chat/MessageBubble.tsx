@@ -1,9 +1,11 @@
+import { memo } from 'react'
 import { Loader2, Video as VideoIcon, CheckCheck, Reply, Quote } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UiMessage } from '@/utils/imTypes'
 import { formatTime } from '@/utils/time'
+import ProgressiveImage from './ProgressiveImage'
 
-export default function MessageBubble({
+const MessageBubble = memo(({
   message,
   isSelf,
   onOpenImage,
@@ -19,7 +21,7 @@ export default function MessageBubble({
   onRetry: () => void
   onQuote: (m: UiMessage) => void
   onJumpTo: (id: string) => void
-}) {
+}) => {
   const m = message
 
   // Function to detect and wrap URLs in <a> tags
@@ -89,34 +91,44 @@ export default function MessageBubble({
         ) : null}
 
         {m.type === 'image' ? (
-          <button
-            className="block overflow-hidden rounded-xl mt-1 active:scale-[0.98] transition-transform"
+          <div
+            className="block overflow-hidden rounded-xl mt-1 active:scale-[0.98] transition-transform cursor-pointer"
             onClick={() => {
               if (!m.mediaUrl) return
               onOpenImage(m.mediaUrl)
             }}
           >
             {m.mediaUrl ? (
-              <img src={m.mediaUrl} alt="image" className="max-h-72 w-auto object-cover" />
+              <ProgressiveImage
+                src={m.mediaUrl}
+                thumb={m.thumbUrl}
+                alt="image"
+                className="max-h-72 w-auto min-h-32 min-w-48"
+              />
             ) : (
               <div className="flex h-32 w-48 items-center justify-center bg-slate-100/80">
                 <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
               </div>
             )}
-          </button>
+          </div>
         ) : null}
 
         {m.type === 'video' ? (
-          <button
-            className="block relative overflow-hidden rounded-xl mt-1 active:scale-[0.98] transition-transform"
+          <div
+            className="block relative overflow-hidden rounded-xl mt-1 active:scale-[0.98] transition-transform cursor-pointer"
             onClick={() => {
               if (!m.mediaUrl) return
               onOpenVideo(m.mediaUrl)
             }}
           >
-            {m.thumbUrl ? (
+            {m.mediaUrl ? (
               <>
-                <img src={m.thumbUrl} alt="video" className="max-h-72 w-auto object-cover" />
+                <ProgressiveImage
+                  src={m.thumbUrl || ''}
+                  thumb={m.thumbUrl}
+                  alt="video"
+                  className="max-h-72 w-auto min-h-32 min-w-48"
+                />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/10">
                   <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
                     <VideoIcon className="h-5 w-5 text-white shadow-sm" />
@@ -128,7 +140,7 @@ export default function MessageBubble({
                 <VideoIcon className="h-6 w-6 text-slate-400" />
               </div>
             )}
-          </button>
+          </div>
         ) : null}
 
         <div className={cn(
@@ -180,4 +192,6 @@ export default function MessageBubble({
       </div>
     </div>
   )
-}
+})
+
+export default MessageBubble

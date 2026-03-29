@@ -1,4 +1,5 @@
 import type { JoinInfo, UiMessage } from './imTypes'
+import { db } from './db'
 
 export function loadJoinInfo(): JoinInfo | null {
   try {
@@ -12,41 +13,71 @@ export function loadJoinInfo(): JoinInfo | null {
   }
 }
 
-export function cacheKey(channelId: string) {
-  return `im:cache:${channelId}`
+export function saveJoinInfo(info: JoinInfo) {
+  try {
+    sessionStorage.setItem('im:lastJoin', JSON.stringify(info))
+  } catch {
+    return
+  }
 }
 
-export function loadCachedMessages(channelId: string): UiMessage[] {
+export async function loadCachedMessages(channelId: string): Promise<UiMessage[]> {
   try {
-    const raw = localStorage.getItem(cacheKey(channelId))
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as UiMessage[]
-    if (!Array.isArray(parsed)) return []
-    return parsed
-      .filter((m) => m && typeof m === 'object' && (m as UiMessage).channelId === channelId)
-      .map((m) => ({ ...(m as UiMessage), status: 'sent' }))
-  } catch {
+    const messages = await db.messages
+      .where('channelId')
+      .equals(channelId)
+      .sortBy('createdAtServer')
+    
+    return messages.map(m => ({ ...m, status: 'sent' }))
+  } catch (err) {
+    console.error('Failed to load cached messages:', err)
     return []
   }
 }
 
-export function saveCachedMessages(channelId: string, messages: UiMessage[]) {
+export async function saveCachedMessage(message: UiMessage) {
   try {
-    const compact = messages
-      .filter((m) => m.status !== 'sending')
-      .slice(-200)
-      .map((m) => ({ ...m, status: undefined }))
-    localStorage.setItem(cacheKey(channelId), JSON.stringify(compact))
-  } catch {
-    return
+    if (message.status === 'sending') return
+    
+    // Use put for upsert
+    await db.messages.put({
+      ...message,
+      status: undefined // We don't store transient status
+    })
+
+    // Optional: limit to 500 messages per channel to avoid unbounded growth
+    const count = await db.messages.where('channelId').equals(message.channelId).count()
+    if (count > 500) {
+      const oldest = await db.messages
+        .where('channelId')
+        .equals(message.channelId)
+        .sortBy('createdAtServer')
+      
+      const toDelete = oldest.slice(0, count - 500).map(m => m.clientMsgId)
+      await db.messages.bulkDelete(toDelete)
+    }
+  } catch (err) {
+    console.error('Failed to save cached message:', err)
   }
 }
 
-export function clearChannelCache(channelId: string) {
+export async function saveCachedMessages(channelId: string, messages: UiMessage[]) {
   try {
-    localStorage.removeItem(cacheKey(channelId))
-  } catch {
-    return
+    const toSave = messages
+      .filter(m => m.status !== 'sending')
+      .map(m => ({ ...m, status: undefined }))
+    
+    await db.messages.bulkPut(toSave)
+  } catch (err) {
+    console.error('Failed to save cached messages:', err)
+  }
+}
+
+export async function clearChannelCache(channelId: string) {
+  try {
+    await db.messages.where('channelId').equals(channelId).delete()
+  } catch (err) {
+    console.error('Failed to clear channel cache:', err)
   }
 }
 

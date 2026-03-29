@@ -20,6 +20,9 @@ export default function MessageList({
   onOpenVideo: (url: string) => void
   onRetry: (m: UiMessage) => void
   onQuote: (m: UiMessage) => void
+  onLoadMore?: () => void
+  loadingMore?: boolean
+  hasMore?: boolean
 }) {
   const virtuosoRef = useRef<VirtuosoHandle>(null)
 
@@ -72,6 +75,27 @@ export default function MessageList({
         followOutput="auto"
         className="h-full scroll-smooth"
         increaseViewportBy={200}
+        startReached={() => {
+          if (hasMore && !loadingMore) {
+            onLoadMore?.()
+          }
+        }}
+        components={{
+          Header: () => (
+            <div className="flex items-center justify-center py-4">
+              {loadingMore ? (
+                <div className="flex items-center gap-2 text-slate-400">
+                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-slate-200 border-t-rose-400" />
+                  <span className="text-[11px] font-light">正在加载更多记录...</span>
+                </div>
+              ) : hasMore ? (
+                <div className="text-[11px] text-slate-300 font-light">继续向上滑动查看历史</div>
+              ) : messages.length > 0 ? (
+                <div className="text-[11px] text-slate-300 font-light">— 已加载全部历史记录 —</div>
+              ) : null}
+            </div>
+          )
+        }}
         itemContent={(index, m) => (
           <div className="px-4 py-2 first:pt-6 last:pb-6">
             <div className="max-w-4xl mx-auto">

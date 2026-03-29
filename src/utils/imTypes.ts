@@ -23,6 +23,7 @@ export type ServerMessage = {
 
 export type UiMessage = ServerMessage & {
   status?: 'sending' | 'sent' | 'failed'
+  progress?: number
 }
 
 export type JoinInfo = {

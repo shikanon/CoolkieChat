@@ -68,16 +68,24 @@ export async function upsertChannel(record: ChannelRecord): Promise<void> {
   `).run(record)
 }
 
-export async function listMessages(channelId: string, limit = 200): Promise<MessageRecord[]> {
+export async function listMessages(channelId: string, limit = 50, beforeTime?: number): Promise<MessageRecord[]> {
   await ensureStorageReady()
-  const rows = db!.prepare(`
-    SELECT * FROM messages 
-    WHERE channelId = ? 
-    ORDER BY createdAtServer ASC 
-    LIMIT ?
-  `).all(channelId, limit) as any[]
+  
+  let query = 'SELECT * FROM messages WHERE channelId = ?'
+  const params: any[] = [channelId]
 
-  return rows.map(row => ({
+  if (beforeTime) {
+    query += ' AND createdAtServer < ?'
+    params.push(beforeTime)
+  }
+
+  query += ' ORDER BY createdAtServer DESC LIMIT ?'
+  params.push(limit)
+
+  const rows = db!.prepare(query).all(...params) as any[]
+
+  // Return in ASC order for frontend display
+  return rows.reverse().map(row => ({
     ...row,
     quote: row.quote ? JSON.parse(row.quote) : undefined
   }))

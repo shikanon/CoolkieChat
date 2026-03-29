@@ -27,6 +27,8 @@ export function useChatSession(joinInfo: JoinInfo | null) {
   const [messages, setMessages] = useState<UiMessage[]>([])
   const [toast, setToast] = useState('')
   const [joinFailed, setJoinFailed] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
 
   const socketRef = useRef<Socket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -257,6 +259,51 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     doSendWithRetry({ ...m, status: 'sending' })
   }
 
+  const updateMessage = useCallback((clientMsgId: string, updates: Partial<UiMessage>) => {
+    setMessages(prev => prev.map(m => m.clientMsgId === clientMsgId ? { ...m, ...updates } : m))
+  }, [])
+
+  const loadHistory = useCallback(async () => {
+    if (loadingHistory || !hasMore || !channelId || !socketRef.current?.connected) return
+
+    const firstMsg = messages.find(m => m.status === 'sent')
+    if (!firstMsg) return
+
+    setLoadingHistory(true)
+    try {
+      const res = await new Promise<{ ok: boolean; history?: ServerMessage[] }>(resolve => {
+        socketRef.current?.emit('channel:history', { 
+          channelId, 
+          beforeTime: firstMsg.createdAtServer,
+          limit: 30 
+        }, resolve)
+      })
+
+      if (res.ok && res.history) {
+        if (res.history.length === 0) {
+          setHasMore(false)
+        } else {
+          const normalized: UiMessage[] = res.history.map(m => ({ ...m, status: 'sent' }))
+          setMessages(prev => {
+            const byClientId = new Map(prev.map(m => [m.clientMsgId, m]))
+            for (const m of normalized) {
+              if (!byClientId.has(m.clientMsgId)) {
+                byClientId.set(m.clientMsgId, m)
+              }
+            }
+            const merged = Array.from(byClientId.values()).sort((a, b) => a.createdAtServer - b.createdAtServer)
+            saveCachedMessages(channelId, merged)
+            return merged
+          })
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load history:', e)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }, [channelId, loadingHistory, hasMore, messages])
+
   const clearChannel = async () => {
     if (!channelId || status !== 'connected') return false
     return await new Promise<boolean>((resolve) => {
@@ -284,6 +331,10 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     sendText,
     sendMedia,
     retryMessage,
+    updateMessage,
     clearChannel,
+    loadHistory,
+    loadingHistory,
+    hasMore,
   }
 }

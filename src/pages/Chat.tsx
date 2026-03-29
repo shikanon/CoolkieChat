@@ -14,6 +14,7 @@ import { extractVideoThumbnail } from '@/utils/videoThumb'
 import { type ServerMessage } from '@/utils/imTypes'
 
 import { convertHeicToJpeg, isHeic } from '@/utils/heic'
+import { compressImage } from '@/utils/compress'
 
 export default function Chat() {
   const nav = useNavigate()
@@ -31,6 +32,9 @@ export default function Chat() {
     sendMedia,
     retryMessage,
     clearChannel,
+    loadHistory,
+    loadingHistory,
+    hasMore,
   } = useChatSession(joinInfo)
 
   const [draft, setDraft] = useState('')
@@ -73,14 +77,21 @@ export default function Chat() {
         return
       }
 
-      if (kind === 'image' && isHeic(file)) {
+      if (kind === 'image') {
         setConverting(true)
         try {
-          const converted = await convertHeicToJpeg(file)
-          setPendingUpload({ file: converted, kind, originalName: file.name })
+          let target = file
+          if (isHeic(file)) {
+            target = await convertHeicToJpeg(file)
+          }
+          // Compress if large or just always for safety
+          if (target.size > 1 * 1024 * 1024) {
+             target = await compressImage(target as File)
+          }
+          setPendingUpload({ file: target, kind, originalName: file.name })
         } catch (e) {
           console.error(e)
-          setToast('图片格式转换失败')
+          setToast('图片处理失败')
           setTimeout(() => setToast(''), 1500)
         } finally {
           setConverting(false)
@@ -154,36 +165,85 @@ export default function Chat() {
   const onConfirmMedia = async () => {
     if (!pendingUpload || uploading) return
     if (!canSend) return
-    setUploading(true)
-    try {
-      const { file, kind, originalName } = pendingUpload
-      let fileName = originalName || (file as File).name || (kind === 'image' ? 'image.jpg' : 'video.mp4')
 
-      // If it was HEIC, it's now converted to JPEG, so change the extension
-      if (kind === 'image' && (fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif'))) {
-        fileName = fileName.replace(/\.(heic|heif)$/i, '.jpg')
-      }
-
-      const uploaded = await uploadFile(file, fileName)
-
-      let thumbUrl: string | undefined
-      if (kind === 'video') {
-        const thumb = await extractVideoThumbnail(file as File)
-        if (thumb) {
-          const thumbUploaded = await uploadFile(thumb, `${fileName}.jpg`)
-          thumbUrl = thumbUploaded.url
-        }
-      }
-
-      sendMedia({ type: kind, mediaUrl: uploaded.url, thumbUrl, mime: uploaded.mime, size: uploaded.size, quote })
-      setPendingUpload(null)
-      setQuote(undefined)
-    } catch {
-      setToast('上传或发送失败')
-      setTimeout(() => setToast(''), 1500)
-    } finally {
-      setUploading(false)
+    const { file, kind, originalName } = pendingUpload
+    const clientMsgId = nanoid()
+    const localUrl = URL.createObjectURL(file)
+    
+    // 1. 立即显示乐观消息
+    const optimistic: UiMessage = {
+      id: clientMsgId,
+      channelId,
+      clientMsgId,
+      senderName: selfName,
+      type: kind,
+      mediaUrl: localUrl, // 先用本地连接
+      createdAtClient: Date.now(),
+      createdAtServer: Date.now(),
+      status: 'sending',
+      progress: 0,
+      quote,
     }
+
+    setMessages((prev) => [...prev, optimistic])
+    setPendingUpload(null)
+    setQuote(undefined)
+
+    // 2. 异步执行上传和发送
+    const processUpload = async () => {
+      try {
+        let fileName = originalName || (file as File).name || (kind === 'image' ? 'image.jpg' : 'video.mp4')
+        if (kind === 'image' && (fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif'))) {
+          fileName = fileName.replace(/\.(heic|heif)$/i, '.jpg')
+        }
+
+        // 模拟进度更新 (由于 uploadFile 目前不支持进度回调，我们先手动模拟或保持 0-100)
+        updateMessage(clientMsgId, { progress: 10 })
+        const uploaded = await uploadFile(file, fileName)
+        updateMessage(clientMsgId, { progress: 80 })
+
+        let thumbUrl: string | undefined
+        if (kind === 'video') {
+          const thumb = await extractVideoThumbnail(file as File)
+          if (thumb) {
+            const thumbUploaded = await uploadFile(thumb, `${fileName}.jpg`)
+            thumbUrl = thumbUploaded.url
+          }
+        }
+        updateMessage(clientMsgId, { progress: 100 })
+
+        // 3. 调用真正发送逻辑
+        const payload: UiMessage = {
+          id: clientMsgId,
+          channelId,
+          clientMsgId,
+          senderName: selfName,
+          type: kind,
+          mediaUrl: uploaded.url,
+          thumbUrl,
+          mime: uploaded.mime,
+          size: uploaded.size,
+          quote,
+          createdAtClient: optimistic.createdAtClient,
+          createdAtServer: Date.now(),
+          status: 'sending',
+        }
+        
+        // 替换为正式 URL 并重试发送逻辑
+        updateMessage(clientMsgId, { mediaUrl: uploaded.url, thumbUrl, status: 'sending' })
+        retryMessage(payload)
+        
+        // 清理本地 URL
+        setTimeout(() => URL.revokeObjectURL(localUrl), 5000)
+      } catch (err) {
+        console.error('Async upload failed:', err)
+        updateMessage(clientMsgId, { status: 'failed' })
+        setToast('媒体上传失败')
+        setTimeout(() => setToast(''), 2000)
+      }
+    }
+
+    processUpload()
   }
 
   const onQuote = (m: ServerMessage) => {
@@ -208,6 +268,9 @@ export default function Chat() {
           onOpenVideo={(url) => setPreview({ type: 'video', url, title: '视频预览' })}
           onRetry={retryMessage}
           onQuote={onQuote}
+          onLoadMore={loadHistory}
+          loadingMore={loadingHistory}
+          hasMore={hasMore}
         />
         <Composer
           canSend={canSend}

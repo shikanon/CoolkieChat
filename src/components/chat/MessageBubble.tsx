@@ -103,11 +103,24 @@ const MessageBubble = memo(({
                 src={m.mediaUrl}
                 thumb={m.thumbUrl}
                 alt="image"
-                className="max-h-72 w-auto min-h-32 min-w-48"
+                className={cn("max-h-72 w-auto min-h-32 min-w-48 transition-all", m.status === 'sending' && 'blur-[2px] opacity-70')}
               />
             ) : (
               <div className="flex h-32 w-48 items-center justify-center bg-slate-100/80">
                 <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+              </div>
+            )}
+            {m.status === 'sending' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                <Loader2 className="h-8 w-8 animate-spin text-white mb-2" />
+                {typeof m.progress === 'number' && (
+                   <div className="w-24 h-1 bg-white/30 rounded-full overflow-hidden">
+                     <div 
+                       className="h-full bg-white transition-all duration-300" 
+                       style={{ width: `${m.progress}%` }}
+                     />
+                   </div>
+                )}
               </div>
             )}
           </div>
@@ -124,10 +137,10 @@ const MessageBubble = memo(({
             {m.mediaUrl ? (
               <>
                 <ProgressiveImage
-                  src={m.thumbUrl || ''}
+                  src={m.thumbUrl || m.mediaUrl} // Use mediaUrl as fallback for thumbnail during upload
                   thumb={m.thumbUrl}
                   alt="video"
-                  className="max-h-72 w-auto min-h-32 min-w-48"
+                  className={cn("max-h-72 w-auto min-h-32 min-w-48 transition-all", m.status === 'sending' && 'blur-[2px] opacity-70')}
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/10">
                   <div className="h-10 w-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
@@ -138,6 +151,19 @@ const MessageBubble = memo(({
             ) : (
               <div className="flex h-32 w-48 items-center justify-center bg-slate-100/80">
                 <VideoIcon className="h-6 w-6 text-slate-400" />
+              </div>
+            )}
+            {m.status === 'sending' && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                <Loader2 className="h-8 w-8 animate-spin text-white mb-2" />
+                {typeof m.progress === 'number' && (
+                   <div className="w-24 h-1 bg-white/30 rounded-full overflow-hidden">
+                     <div 
+                       className="h-full bg-white transition-all duration-300" 
+                       style={{ width: `${m.progress}%` }}
+                     />
+                   </div>
+                )}
               </div>
             )}
           </div>

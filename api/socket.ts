@@ -112,8 +112,28 @@ export function initSocket(httpServer: HttpServer) {
       await socket.join(channelId)
       socket.data.joined = { channelId, selfName }
 
-      const history = await listMessages(channelId, 200)
+      const history = await listMessages(channelId, 50)
       ack?.({ ok: true, channelId, history, serverTime: Date.now() })
+    })
+
+    socket.on('channel:history', async (payload: { channelId: string; beforeTime?: number; limit?: number }, ack?: (res: { ok: boolean; history?: MessageRecord[]; message?: string }) => void) => {
+      const joinedChannelId = normalizeString(socket.data?.joined?.channelId)
+      const channelId = normalizeString(payload?.channelId)
+      if (!joinedChannelId || joinedChannelId !== channelId) {
+        ack?.({ ok: false, message: '操作失败' })
+        return
+      }
+
+      const limit = typeof payload?.limit === 'number' ? Math.min(payload.limit, 100) : 50
+      const beforeTime = typeof payload?.beforeTime === 'number' ? payload.beforeTime : undefined
+
+      try {
+        const history = await listMessages(channelId, limit, beforeTime)
+        ack?.({ ok: true, history })
+      } catch (e) {
+        console.error('History fetch error:', e)
+        ack?.({ ok: false, message: '获取历史记录失败' })
+      }
     })
 
     socket.on('message:send', async (payload: SendPayload, ack?: SendAck) => {

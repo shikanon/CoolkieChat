@@ -12,6 +12,9 @@ export default function MessageList({
   onOpenVideo,
   onRetry,
   onQuote,
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }: {
   listRef: React.RefObject<HTMLDivElement | null>
   messages: UiMessage[]

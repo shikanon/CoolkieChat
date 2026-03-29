@@ -332,6 +332,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     sendMedia,
     retryMessage,
     updateMessage,
+    setMessages,
     clearChannel,
     loadHistory,
     loadingHistory,

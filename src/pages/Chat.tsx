@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { nanoid } from 'nanoid'
 import ChatHeader from '@/components/chat/ChatHeader'
 import Composer from '@/components/chat/Composer'
 import ConnectionBanner from '@/components/chat/ConnectionBanner'
@@ -11,7 +12,7 @@ import { useChatSession } from '@/hooks/useChatSession'
 import { loadJoinInfo } from '@/utils/imStorage'
 import { uploadFile } from '@/utils/upload'
 import { extractVideoThumbnail } from '@/utils/videoThumb'
-import { type ServerMessage } from '@/utils/imTypes'
+import { type ServerMessage, type UiMessage } from '@/utils/imTypes'
 
 import { convertHeicToJpeg, isHeic } from '@/utils/heic'
 import { compressImage } from '@/utils/compress'
@@ -31,6 +32,8 @@ export default function Chat() {
     sendText,
     sendMedia,
     retryMessage,
+    updateMessage,
+    setMessages,
     clearChannel,
     loadHistory,
     loadingHistory,
@@ -80,13 +83,15 @@ export default function Chat() {
       if (kind === 'image') {
         setConverting(true)
         try {
-          let target = file
+          let target: File = file
           if (isHeic(file)) {
-            target = await convertHeicToJpeg(file)
+            const blob = await convertHeicToJpeg(file)
+            target = new File([blob], file.name.replace(/\.(heic|heif)$/i, '.jpg'), { type: 'image/jpeg' })
           }
           // Compress if large or just always for safety
           if (target.size > 1 * 1024 * 1024) {
-             target = await compressImage(target as File)
+            const blob = await compressImage(target)
+            target = new File([blob], target.name, { type: 'image/jpeg' })
           }
           setPendingUpload({ file: target, kind, originalName: file.name })
         } catch (e) {

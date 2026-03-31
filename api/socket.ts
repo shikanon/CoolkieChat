@@ -112,8 +112,53 @@ export function initSocket(httpServer: HttpServer) {
       await socket.join(channelId)
       socket.data.joined = { channelId, selfName }
 
+      // Notify others about presence
+      io.to(channelId).emit('presence:update', { channelId, senderName: selfName, online: true })
+
       const history = await listMessages(channelId, 50)
       ack?.({ ok: true, channelId, history, serverTime: Date.now() })
+    })
+
+    socket.on('channel:presence', (payload: { channelId: string }, ack?: (res: { ok: boolean; onlineUsers: string[] }) => void) => {
+      const channelId = normalizeString(payload?.channelId)
+      if (!channelId) {
+        ack?.({ ok: false, onlineUsers: [] })
+        return
+      }
+
+      const clients = io.sockets.adapter.rooms.get(channelId)
+      const onlineUsers: string[] = []
+      if (clients) {
+        for (const clientId of clients) {
+          const clientSocket = io.sockets.sockets.get(clientId)
+          if (clientSocket?.data?.joined?.selfName) {
+            onlineUsers.push(clientSocket.data.joined.selfName)
+          }
+        }
+      }
+      ack?.({ ok: true, onlineUsers })
+    })
+
+    socket.on('disconnect', () => {
+      const { channelId, selfName } = socket.data.joined || {}
+      if (channelId && selfName) {
+        // Check if user has other tabs/sockets open in the same channel
+        const clients = io.sockets.adapter.rooms.get(channelId)
+        let stillOnline = false
+        if (clients) {
+          for (const clientId of clients) {
+            const clientSocket = io.sockets.sockets.get(clientId)
+            if (clientSocket && clientSocket.id !== socket.id && clientSocket.data?.joined?.selfName === selfName) {
+              stillOnline = true
+              break
+            }
+          }
+        }
+
+        if (!stillOnline) {
+          io.to(channelId).emit('presence:update', { channelId, senderName: selfName, online: false })
+        }
+      }
     })
 
     socket.on('channel:history', async (payload: { channelId: string; beforeTime?: number; limit?: number }, ack?: (res: { ok: boolean; history?: MessageRecord[]; message?: string }) => void) => {

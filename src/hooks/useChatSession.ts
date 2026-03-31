@@ -29,6 +29,7 @@ export function useChatSession(joinInfo: JoinInfo | null) {
   const [joinFailed, setJoinFailed] = useState(false)
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const [isPeerOnline, setIsPeerOnline] = useState(false)
 
   const socketRef = useRef<Socket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
@@ -97,7 +98,21 @@ export function useChatSession(joinInfo: JoinInfo | null) {
         saveCachedMessages(cid, merged)
         return merged
       })
+
+      // Fetch presence
+      socket.emit('channel:presence', { channelId: cid }, (res: { ok: boolean; onlineUsers: string[] }) => {
+        if (res.ok && res.onlineUsers) {
+          const peerName = joinInfo.peerName
+          setIsPeerOnline(res.onlineUsers.includes(peerName))
+        }
+      })
     }) as JoinAck)
+
+    socket.on('presence:update', (data: { channelId: string; senderName: string; online: boolean }) => {
+      if (data.senderName === joinInfo.peerName) {
+        setIsPeerOnline(data.online)
+      }
+    })
 
     socket.on('message:new', (msg: ServerMessage) => {
       if (!msg?.channelId) return
@@ -337,5 +352,6 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     loadHistory,
     loadingHistory,
     hasMore,
+    isPeerOnline,
   }
 }

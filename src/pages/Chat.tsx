@@ -38,6 +38,7 @@ export default function Chat() {
     loadHistory,
     loadingHistory,
     hasMore,
+    isPeerOnline,
   } = useChatSession(joinInfo)
 
   const [draft, setDraft] = useState('')
@@ -263,7 +264,14 @@ export default function Chat() {
   return (
     <div className="h-dvh w-full bg-gradient-to-br from-sky-50 via-white to-rose-50 text-slate-800 selection:bg-rose-100">
       <div className="mx-auto flex h-dvh w-full max-w-3xl flex-col border-x border-slate-200/50 bg-white/40 backdrop-blur-md">
-        <ChatHeader peerName={peerName} connected={status === 'connected'} onBack={() => nav('/')} onClear={onClear} onExport={onExport} />
+        <ChatHeader 
+  peerName={peerName} 
+  selfOnline={status === 'connected'} 
+  peerOnline={isPeerOnline} 
+  onBack={() => nav('/')} 
+  onClear={onClear} 
+  onExport={onExport} 
+/>
         <ConnectionBanner visible={status !== 'connected'} />
         <MessageList
           listRef={listRef}

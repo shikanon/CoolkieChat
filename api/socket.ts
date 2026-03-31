@@ -2,12 +2,16 @@ import type { Server as HttpServer } from 'http'
 import { Server } from 'socket.io'
 import { nanoid } from 'nanoid'
 import { sha256Hex } from './storage/crypto.js'
-import { ensureStorageReady, getChannel, listMessages, upsertChannel, appendMessage, clearChannelMessages } from './storage/store.js'
+import { ensureStorageReady, getChannel, listMessages, listMessagesAfter, upsertChannel, appendMessage, clearChannelMessages } from './storage/store.js'
 import type { ChannelRecord, MessageRecord, MessageType } from './storage/types.js'
 
 // Simple in-memory cache to prevent duplicate messages (store last 1000 IDs)
 const processedMsgIds = new Set<string>()
 const MAX_CACHE_SIZE = 1000
+
+// Presence tracking via heartbeats
+const HEARTBEAT_TIMEOUT = 30000 // 30 seconds
+const userLastHeartbeat = new Map<string, { time: number, channelId: string, selfName: string }>()
 
 function addToCache(id: string) {
   processedMsgIds.add(id)
@@ -68,6 +72,36 @@ export function initSocket(httpServer: HttpServer) {
     cors: { origin: true, credentials: true },
   })
 
+  // Cleanup offline users based on heartbeats
+  setInterval(() => {
+    const now = Date.now()
+    for (const [socketId, data] of userLastHeartbeat.entries()) {
+      if (now - data.time > HEARTBEAT_TIMEOUT) {
+        userLastHeartbeat.delete(socketId)
+        
+        // Double check if user has other active connections
+        let stillOnline = false
+        const clients = io.sockets.adapter.rooms.get(data.channelId)
+        if (clients) {
+          for (const cid of clients) {
+            if (userLastHeartbeat.has(cid) && userLastHeartbeat.get(cid)?.selfName === data.selfName) {
+              stillOnline = true
+              break
+            }
+          }
+        }
+
+        if (!stillOnline) {
+          io.to(data.channelId).emit('presence:update', { 
+            channelId: data.channelId, 
+            senderName: data.selfName, 
+            online: false 
+          })
+        }
+      }
+    }
+  }, 10000)
+
   io.on('connection', (socket) => {
     socket.data.joined = { channelId: '', selfName: '' }
 
@@ -111,6 +145,7 @@ export function initSocket(httpServer: HttpServer) {
 
       await socket.join(channelId)
       socket.data.joined = { channelId, selfName }
+      userLastHeartbeat.set(socket.id, { time: Date.now(), channelId, selfName })
 
       // Notify others about presence
       io.to(channelId).emit('presence:update', { channelId, senderName: selfName, online: true })
@@ -141,14 +176,15 @@ export function initSocket(httpServer: HttpServer) {
 
     socket.on('disconnect', () => {
       const { channelId, selfName } = socket.data.joined || {}
+      userLastHeartbeat.delete(socket.id)
+      
       if (channelId && selfName) {
         // Check if user has other tabs/sockets open in the same channel
         const clients = io.sockets.adapter.rooms.get(channelId)
         let stillOnline = false
         if (clients) {
           for (const clientId of clients) {
-            const clientSocket = io.sockets.sockets.get(clientId)
-            if (clientSocket && clientSocket.id !== socket.id && clientSocket.data?.joined?.selfName === selfName) {
+            if (userLastHeartbeat.has(clientId) && userLastHeartbeat.get(clientId)?.selfName === selfName) {
               stillOnline = true
               break
             }
@@ -259,8 +295,21 @@ export function initSocket(httpServer: HttpServer) {
       ack?.({ ok: true })
     })
 
-    socket.on('heartbeat', (payload: { timestamp: number }, ack?: (res: { ok: true; timestamp: number }) => void) => {
-      ack?.({ ok: true, timestamp: payload.timestamp })
+    socket.on('heartbeat', async (payload: { timestamp: number, lastMsgServerTime?: number }, ack?: (res: { ok: true; timestamp: number; syncHistory?: MessageRecord[] }) => void) => {
+      const { channelId, selfName } = socket.data.joined || {}
+      if (channelId && selfName) {
+        userLastHeartbeat.set(socket.id, { time: Date.now(), channelId, selfName })
+        
+        // Message consistency check
+        let syncHistory: MessageRecord[] = []
+        if (payload.lastMsgServerTime) {
+          syncHistory = await listMessagesAfter(channelId, payload.lastMsgServerTime, 50)
+        }
+
+        ack?.({ ok: true, timestamp: payload.timestamp, syncHistory })
+      } else {
+        ack?.({ ok: true, timestamp: payload.timestamp })
+      }
     })
   })
 

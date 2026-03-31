@@ -34,6 +34,17 @@ export function useChatSession(joinInfo: JoinInfo | null) {
   const socketRef = useRef<Socket | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const retryTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
+  const messagesRef = useRef<UiMessage[]>([])
+  const channelIdRef = useRef<string>('')
+
+  // Keep refs in sync
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  useEffect(() => {
+    channelIdRef.current = channelId
+  }, [channelId])
 
   const selfName = useMemo(() => joinInfo?.selfName || '', [joinInfo])
 
@@ -65,8 +76,27 @@ export function useChatSession(joinInfo: JoinInfo | null) {
     // Heartbeat logic
     const heartbeatTimer = setInterval(() => {
       if (socket.connected) {
-        socket.emit('heartbeat', { timestamp: Date.now() }, (res: { ok: boolean }) => {
-          if (!res?.ok) {
+        // Find the latest message that has been successfully sent to the server
+        const lastSentMsg = [...messagesRef.current].reverse().find(m => m.status === 'sent')
+        const lastMsgServerTime = lastSentMsg?.createdAtServer
+
+        socket.emit('heartbeat', { 
+          timestamp: Date.now(),
+          lastMsgServerTime 
+        }, (res: { ok: boolean; syncHistory?: ServerMessage[] }) => {
+          if (res?.ok) {
+            if (res.syncHistory && res.syncHistory.length > 0) {
+              console.log(`Heartbeat sync: merging ${res.syncHistory.length} messages`)
+              const normalized: UiMessage[] = res.syncHistory.map(m => ({ ...m, status: 'sent' }))
+              setMessages(prev => {
+                const byClientId = new Map(prev.map(m => [m.clientMsgId, m]))
+                for (const m of normalized) byClientId.set(m.clientMsgId, m)
+                const merged = Array.from(byClientId.values()).sort((a, b) => a.createdAtServer - b.createdAtServer)
+                saveCachedMessages(channelIdRef.current, merged)
+                return merged
+              })
+            }
+          } else {
             console.warn('Heartbeat failed')
           }
         })

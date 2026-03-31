@@ -91,6 +91,21 @@ export async function listMessages(channelId: string, limit = 50, beforeTime?: n
   }))
 }
 
+export async function listMessagesAfter(channelId: string, afterTime: number, limit = 50): Promise<MessageRecord[]> {
+  await ensureStorageReady()
+  const rows = db!.prepare(`
+    SELECT * FROM messages 
+    WHERE channelId = ? AND createdAtServer > ? 
+    ORDER BY createdAtServer ASC 
+    LIMIT ?
+  `).all(channelId, afterTime, limit) as any[]
+
+  return rows.map(row => ({
+    ...row,
+    quote: row.quote ? JSON.parse(row.quote) : undefined
+  }))
+}
+
 export async function appendMessage(message: MessageRecord): Promise<void> {
   await ensureStorageReady()
   db!.prepare(`

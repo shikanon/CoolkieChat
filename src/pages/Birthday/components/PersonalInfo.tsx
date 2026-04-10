@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Cake, Cat, MapPin, Heart, Info } from 'lucide-react';
+import { Cake, Cat, MapPin, Heart, Info, Sparkles } from 'lucide-react';
+import BirthdayMap from './BirthdayMap';
 
 const PersonalInfo: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -9,12 +10,21 @@ const PersonalInfo: React.FC = () => {
     nickname: '琦琦公主',
     formalName: '吴煜琦',
     birthday: '2005年4月10日',
-    hometown: '汕头',
+    hometown: '广州 & 汕头',
     pets: [
       { name: '咪咪', desc: '一只活泼可爱、最喜欢黏人的猫咪' },
       { name: '妮妮', desc: '温柔安静的小天使，偶尔调皮捣蛋' }
     ],
-    cakes: ['草莓', '樱桃', '抹茶', '葡萄', '蓝莓']
+    cakes: ['草莓', '樱桃', '抹茶', '葡萄', '蓝莓'],
+    firstMeeting: {
+      date: '1月2号 下午3:25',
+      location: '南巷 日茶夜酒',
+      remark: '那一刻，世界仿佛静止，唯有你的笑容最动人。'
+    },
+    firstHeartbeat: {
+      date: '1月18日',
+      remark: '我（小名）第一次对煜琦你心动是1月18日。'
+    }
   };
 
   const calculateAge = (birthday: string) => {
@@ -81,23 +91,22 @@ const PersonalInfo: React.FC = () => {
             <p className="text-pink-500 font-medium">🎂 正在迎接 {calculateAge(personalData.birthday)} 岁的璀璨人生</p>
           </div>
 
-          {/* Hometown */}
-          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 hover:scale-105 transition-transform">
+          {/* Hometown Map */}
+          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 lg:col-span-1 md:col-span-2">
             <div className="flex items-center gap-4 mb-4">
               <div className="bg-blue-100 p-3 rounded-2xl text-blue-500">
                 <MapPin size={28} />
               </div>
               <div>
-                <h3 className="text-blue-700 font-bold text-xl">籍贯</h3>
-                <p className="text-gray-500 text-sm">汕头元素</p>
+                <h3 className="text-blue-700 font-bold text-xl">籍贯 & 学习</h3>
+                <p className="text-gray-500 text-sm">广州 & 汕头</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-2xl font-bold text-gray-800">{personalData.hometown}</span>
-              <span className="text-2xl">🏙️</span>
+            <div className="mb-4">
+              <BirthdayMap />
             </div>
-            <p className="text-gray-600 text-sm italic">
-              牛肉丸、红头船，这是煜琦出生的地方 🍢
+            <p className="text-gray-600 text-sm italic text-center">
+              从家乡汕头到学府广州，每一步都是成长的印记 🏙️
             </p>
           </div>
 
@@ -148,6 +157,61 @@ const PersonalInfo: React.FC = () => {
                   {cake}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* First Meeting */}
+          <div className="bg-gradient-to-br from-pink-500 to-rose-400 p-8 rounded-3xl shadow-xl text-white col-span-1 md:col-span-2 lg:col-span-1 hover:scale-105 transition-transform">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-white/20 p-3 rounded-2xl">
+                <Sparkles size={28} />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl">初次邂逅</h3>
+                <p className="text-white/70 text-sm">First Meeting</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-white/60 text-xs uppercase tracking-widest mb-1">时间</p>
+                <p className="text-2xl font-bold">{personalData.firstMeeting.date}</p>
+              </div>
+              <div>
+                <p className="text-white/60 text-xs uppercase tracking-widest mb-1">地点</p>
+                <p className="text-xl font-medium flex items-center gap-2">
+                  <MapPin size={18} />
+                  {personalData.firstMeeting.location}
+                </p>
+              </div>
+              <div className="pt-2">
+                <p className="text-sm italic leading-relaxed bg-white/10 p-3 rounded-xl">
+                  “{personalData.firstMeeting.remark}”
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* First Heartbeat */}
+          <div className="bg-gradient-to-br from-rose-400 to-pink-500 p-8 rounded-3xl shadow-xl text-white col-span-1 md:col-span-2 lg:col-span-1 hover:scale-105 transition-transform">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-white/20 p-3 rounded-2xl">
+                <Heart size={28} className="fill-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-xl">心动时刻</h3>
+                <p className="text-white/70 text-sm">Heartbeat Moment</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-white/60 text-xs uppercase tracking-widest mb-1">日期</p>
+                <p className="text-2xl font-bold">{personalData.firstHeartbeat.date}</p>
+              </div>
+              <div className="pt-2">
+                <p className="text-sm italic leading-relaxed bg-white/10 p-3 rounded-xl">
+                  “{personalData.firstHeartbeat.remark}”
+                </p>
+              </div>
             </div>
           </div>
         </div>

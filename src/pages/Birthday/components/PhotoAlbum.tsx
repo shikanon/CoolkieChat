@@ -55,7 +55,7 @@ const PhotoAlbum: React.FC = () => {
         id: `v-${index}`,
         url: `/photo/${file}`,
         type: 'video' as const,
-        remark: `心动瞬间 ${index + 1}`,
+        remark: '', // Remove generic placeholder
         quote: QUOTES[index % QUOTES.length],
         date: '2026-04-10'
       })),
@@ -63,7 +63,7 @@ const PhotoAlbum: React.FC = () => {
         id: `i-${index}`,
         url: `/photo/${file}`,
         type: 'image' as const,
-        remark: `公主日常 ${index + 1}`,
+        remark: '', // Remove generic placeholder
         quote: QUOTES[(index + videoFiles.length) % QUOTES.length],
         date: '2026-04-10'
       }))
@@ -71,7 +71,22 @@ const PhotoAlbum: React.FC = () => {
 
     const stored = localStorage.getItem('birthday_media');
     if (stored) {
-      setMediaItems(JSON.parse(stored));
+      const parsed = JSON.parse(stored) as MediaItem[];
+      // Migration: Ensure quote exists and remove "生活点滴" or other generic remarks
+      const migrated = parsed.map((item, index) => {
+        const newItem = { ...item };
+        // If quote is missing, assign one
+        if (!newItem.quote) {
+          newItem.quote = QUOTES[index % QUOTES.length];
+        }
+        // If remark is "生活点滴" or generic placeholder, clear it
+        if (newItem.remark === '生活点滴' || newItem.remark?.includes('心动瞬间') || newItem.remark?.includes('公主日常')) {
+          newItem.remark = '';
+        }
+        return newItem;
+      });
+      setMediaItems(migrated);
+      localStorage.setItem('birthday_media', JSON.stringify(migrated));
     } else {
       setMediaItems(initialMedia);
       localStorage.setItem('birthday_media', JSON.stringify(initialMedia));
@@ -121,7 +136,7 @@ const PhotoAlbum: React.FC = () => {
                   ) : (
                     <img 
                       src={item.url} 
-                      alt={item.remark}
+                      alt={item.quote || item.remark}
                       className="w-full h-full object-cover"
                     />
                   )}
@@ -138,9 +153,13 @@ const PhotoAlbum: React.FC = () => {
                         <Quote className="text-pink-400/40" size={40} />
                       </div>
                       <div className="flex items-center justify-center gap-4 text-white/70">
-                        <div className="h-px w-12 bg-white/30" />
-                        <span className="text-sm md:text-lg font-medium tracking-widest uppercase">{item.remark}</span>
-                        <div className="h-px w-12 bg-white/30" />
+                        {item.remark && (
+                          <>
+                            <div className="h-px w-12 bg-white/30" />
+                            <span className="text-sm md:text-lg font-medium tracking-widest uppercase">{item.remark}</span>
+                            <div className="h-px w-12 bg-white/30" />
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -170,7 +189,7 @@ const PhotoAlbum: React.FC = () => {
               ) : (
                 <img 
                   src={item.url} 
-                  alt={item.remark}
+                  alt={item.quote || item.remark}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   loading="lazy"
                 />
@@ -277,7 +296,9 @@ const PhotoAlbum: React.FC = () => {
                             </div>
                           ) : (
                             <div className="flex items-center justify-center gap-4">
-                              <p className="text-lg md:text-xl font-medium text-white/80 tracking-wide">{item.remark}</p>
+                              {item.remark && (
+                                <p className="text-lg md:text-xl font-medium text-white/80 tracking-wide">{item.remark}</p>
+                              )}
                               <button 
                                 onClick={() => setEditingRemark({ id: item.id, text: item.remark })}
                                 className="p-2 hover:bg-white/10 rounded-full transition-colors text-pink-300"

@@ -1,19 +1,34 @@
-const CACHE_NAME = 'coolkiechat-media-v1';
-const MEDIA_PATH_PREFIX = '/uploads/';
+const CACHE_NAME = 'coolkiechat-v2';
+const MEDIA_PATH_PREFIXES = ['/uploads/', '/photo/'];
+const INDIVIDUAL_ASSETS = ['/虫儿飞.mp3', '/mosaic_generated.jpg'];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(clients.claim());
+  // Clean up old caches
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  // Only cache media files from our /uploads/ path
-  if (url.pathname.startsWith(MEDIA_PATH_PREFIX) && event.request.method === 'GET') {
+  // Cache media files from /uploads/ and /photo/ or specific assets
+  const shouldCache = MEDIA_PATH_PREFIXES.some(prefix => url.pathname.startsWith(prefix)) || 
+                      INDIVIDUAL_ASSETS.includes(url.pathname);
+
+  if (shouldCache && event.request.method === 'GET') {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((response) => {

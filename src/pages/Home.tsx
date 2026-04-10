@@ -184,7 +184,15 @@ export default function Home() {
           />
         </div>
 
-        <footer className="mt-12 text-center">
+        <footer className="mt-12 text-center space-y-4">
+          <button 
+            onClick={() => nav('/birthday')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-pink-50 text-pink-500 text-[10px] font-bold uppercase tracking-widest hover:bg-pink-100 transition-all border border-pink-100"
+          >
+            <Sparkles size={12} />
+            进入生日专属空间
+            <Sparkles size={12} />
+          </button>
           <p className="text-[10px] text-slate-400 font-light leading-relaxed">
             不被定义，不留痕迹。专为温柔的秘密而生。<br />
             CoolkieChat &copy; 2026

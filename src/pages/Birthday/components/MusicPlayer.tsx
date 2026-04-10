@@ -12,6 +12,34 @@ const MusicPlayer: React.FC = () => {
     }
   }, [volume]);
 
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (audioRef.current && !isPlaying) {
+        audioRef.current.play()
+          .then(() => {
+            setIsPlaying(true);
+            // Remove listeners once played
+            document.removeEventListener('click', handleFirstInteraction);
+            document.removeEventListener('touchstart', handleFirstInteraction);
+            document.removeEventListener('keydown', handleFirstInteraction);
+          })
+          .catch(err => {
+            console.warn('Autoplay failed even after interaction:', err);
+          });
+      }
+    };
+
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('touchstart', handleFirstInteraction);
+    document.addEventListener('keydown', handleFirstInteraction);
+
+    return () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+      document.removeEventListener('keydown', handleFirstInteraction);
+    };
+  }, [isPlaying]);
+
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) {
@@ -29,8 +57,10 @@ const MusicPlayer: React.FC = () => {
     <div className="fixed bottom-6 right-6 z-50 flex items-center gap-4 bg-white/80 backdrop-blur-md p-3 rounded-3xl shadow-xl border border-pink-100 animate-in slide-in-from-right-10 duration-500">
       <audio 
         ref={audioRef}
-        src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" // Placeholder music
+        src="/虫儿飞.mp3"
         loop
+        autoPlay
+        playsInline
       />
       
       <div className="flex items-center gap-2 group relative">

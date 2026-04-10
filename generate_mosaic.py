@@ -33,9 +33,9 @@ def generate_mosaic():
         return
 
     # 2. Create text mask
-    # We want the output to be large, e.g., 4000x1200
-    rows = 40
-    cols = 120
+    # We want the output to be large, e.g., 4000x2400
+    rows = 60
+    cols = 100
     width = cols * tile_size[0]
     height = rows * tile_size[1]
     
@@ -51,11 +51,12 @@ def generate_mosaic():
     ]
     
     font = None
+    font_size = 24 # Adjusted for two lines
     for path in font_paths:
         if os.path.exists(path):
             try:
                 # index=1 for PingFang is usually Bold
-                font = ImageFont.truetype(path, 32, index=1 if "PingFang" in path else 0)
+                font = ImageFont.truetype(path, font_size, index=1 if "PingFang" in path else 0)
                 break
             except:
                 continue
@@ -64,11 +65,26 @@ def generate_mosaic():
         font = ImageFont.load_default()
         print("Warning: Could not find SimHei/Heiti font, using default.")
         
-    # Draw text centered
-    text_bbox = draw.textbbox((0, 0), text, font=font)
-    text_w = text_bbox[2] - text_bbox[0]
-    text_h = text_bbox[3] - text_bbox[1]
-    draw.text(((cols - text_w) // 2, (rows - text_h) // 2 - 2), text, font=font, fill=255)
+    # Draw text in two lines centered
+    lines = ["煜琦", "生日快乐"]
+    line_spacing = 4
+    
+    total_h = 0
+    line_metrics = []
+    for line in lines:
+        bbox = draw.textbbox((0, 0), line, font=font)
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+        line_metrics.append((w, h))
+        total_h += h
+    
+    total_h += (len(lines) - 1) * line_spacing
+    
+    current_y = (rows - total_h) // 2
+    for i, line in enumerate(lines):
+        w, h = line_metrics[i]
+        draw.text(((cols - w) // 2, current_y), line, font=font, fill=255)
+        current_y += h + line_spacing
     
     # 3. Assemble the mosaic
     mosaic_img = Image.new('RGB', (width, height), (255, 192, 203)) # Pink background

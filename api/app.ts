@@ -24,17 +24,19 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
-app.use('/uploads', express.static(getUploadsDir()))
-
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+app.use('/uploads', express.static(getUploadsDir()))
+app.use('/photo', express.static(path.resolve(__dirname, '..', 'public', 'photo')))
+
 const distDir = path.resolve(__dirname, '..', 'dist')
 const distIndex = path.join(distDir, 'index.html')
 
 if (process.env.NODE_ENV === 'production' && fs.existsSync(distDir)) {
   app.use(express.static(distDir))
   app.get('*', (req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) return next()
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/photo')) return next()
     res.sendFile(distIndex)
   })
 }
@@ -43,6 +45,26 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(distDir)) {
  * API Routes
  */
 app.use('/api/upload', uploadRoutes)
+
+/**
+ * list photos
+ */
+app.get('/api/photos', async (_req: Request, res: Response) => {
+  try {
+    const photoDir = path.resolve(__dirname, '..', 'public', 'photo')
+    const files = await fs.promises.readdir(photoDir)
+    const photos = files.filter(f => /\.(jpg|jpeg|png|webp)$/i.test(f))
+    res.status(200).json({
+      success: true,
+      photos,
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to list photos',
+    })
+  }
+})
 
 /**
  * health

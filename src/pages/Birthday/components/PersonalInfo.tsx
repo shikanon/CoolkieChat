@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cake, Cat, MapPin, Heart, Info, Sparkles } from 'lucide-react';
+import { Cake, Cat, MapPin, Heart, Info, Sparkles, Quote } from 'lucide-react';
 import BirthdayMap from './BirthdayMap';
 
 const PersonalInfo: React.FC = () => {
@@ -50,168 +50,201 @@ const PersonalInfo: React.FC = () => {
   return (
     <section id="personal" className="py-20 px-4 md:px-10 bg-gradient-to-b from-white to-pink-50">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-4xl font-bold text-center text-pink-600 mb-12 flex items-center justify-center gap-3">
-          <Heart className="fill-pink-600" />
-          专属信息
-          <Heart className="fill-pink-600" />
-        </h2>
+        <div className="text-center mb-16 space-y-2">
+          <h2 className="text-4xl md:text-5xl font-serif italic font-bold text-pink-600 flex items-center justify-center gap-4">
+            <Heart className="fill-pink-600 animate-pulse" />
+            专属信息
+            <Heart className="fill-pink-600 animate-pulse" />
+          </h2>
+          <div className="flex items-center justify-center gap-2 text-pink-300">
+            <div className="h-px w-8 bg-current opacity-30" />
+            <span className="text-xs uppercase tracking-[0.3em] font-bold">Exclusive Information</span>
+            <div className="h-px w-8 bg-current opacity-30" />
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Nickname & Formal Name */}
-          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 hover:scale-105 transition-transform">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-pink-100 p-3 rounded-2xl text-pink-500">
-                <Heart size={28} />
+          {/* 1. Nickname & Formal Name */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-pink-50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '100ms' }}>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-pink-50 p-4 rounded-2xl text-pink-500 group-hover:bg-pink-500 group-hover:text-white transition-colors duration-500">
+                <Heart size={28} className="group-hover:fill-current" />
               </div>
               <div>
-                <h3 className="text-pink-600 font-bold text-xl">公主昵称</h3>
-                <p className="text-gray-500 text-sm">专属称谓</p>
+                <h3 className="text-pink-600 font-bold text-xl tracking-tight">公主昵称</h3>
+                <p className="text-gray-400 text-xs uppercase tracking-widest">Exclusive Title</p>
               </div>
             </div>
-            <p className="text-3xl font-serif italic font-bold text-pink-700 mb-2">
-              {personalData.nickname}
-            </p>
-            <p className="text-gray-600">正式称呼: {personalData.formalName}</p>
+            <div className="space-y-3">
+              <p className="text-4xl font-serif italic font-bold text-pink-700 leading-tight">
+                {personalData.nickname}
+              </p>
+              <div className="h-px w-12 bg-pink-100" />
+              <p className="text-gray-500 font-medium">正式称呼: <span className="text-gray-800">{personalData.formalName}</span></p>
+            </div>
           </div>
 
-          {/* Birthday */}
-          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 hover:scale-105 transition-transform">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-green-100 p-3 rounded-2xl text-green-500">
+          {/* 2. Birthday */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-pink-50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '200ms' }}>
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-orange-50 p-4 rounded-2xl text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors duration-500">
                 <Cake size={28} />
               </div>
               <div>
-                <h3 className="text-green-700 font-bold text-xl">生日快乐</h3>
-                <p className="text-gray-500 text-sm">按时长大</p>
+                <h3 className="text-orange-700 font-bold text-xl tracking-tight">生日快乐</h3>
+                <p className="text-gray-400 text-xs uppercase tracking-widest">Growth Timeline</p>
               </div>
             </div>
-            <p className="text-2xl font-bold text-gray-800 mb-2">
-              {personalData.birthday}
-            </p>
-            <p className="text-pink-500 font-medium">🎂 正在迎接 {calculateAge(personalData.birthday)} 岁的璀璨人生</p>
+            <div className="space-y-3">
+              <p className="text-3xl font-bold text-gray-800 tracking-tight">
+                {personalData.birthday}
+              </p>
+              <div className="h-px w-12 bg-orange-100" />
+              <div className="flex items-center gap-2 text-pink-500 font-semibold bg-pink-50/50 px-4 py-2 rounded-full w-fit">
+                <Sparkles size={16} />
+                正在迎接 {calculateAge(personalData.birthday)} 岁的璀璨人生
+              </div>
+            </div>
           </div>
 
-          {/* Hometown Map */}
-          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 lg:col-span-1 md:col-span-2">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-blue-100 p-3 rounded-2xl text-blue-500">
-                <MapPin size={28} />
+          {/* 3. First Heartbeat (Sentimental) */}
+          <div className="bg-gradient-to-br from-rose-400 to-pink-500 p-8 rounded-[2.5rem] shadow-2xl text-white hover:shadow-pink-200/50 hover:-translate-y-2 transition-all duration-500 group relative overflow-hidden animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '300ms' }}>
+            <div className="absolute -right-4 -bottom-4 text-white/10 group-hover:scale-110 transition-transform duration-700">
+              <Heart size={120} className="fill-current" />
+            </div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm">
+                  <Heart size={28} className="fill-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl tracking-tight">心动时刻</h3>
+                  <p className="text-white/70 text-xs uppercase tracking-widest">Heartbeat Moment</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-blue-700 font-bold text-xl">籍贯 & 学习</h3>
-                <p className="text-gray-500 text-sm">广州 & 汕头</p>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-white/60 text-xs uppercase tracking-widest mb-1 font-bold">日期</p>
+                  <p className="text-3xl font-bold">{personalData.firstHeartbeat.date}</p>
+                </div>
+                <div className="pt-2">
+                  <p className="text-sm italic leading-relaxed bg-white/15 p-4 rounded-2xl backdrop-blur-md border border-white/10 shadow-inner">
+                    “{personalData.firstHeartbeat.remark}”
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="mb-4">
-              <BirthdayMap />
-            </div>
-            <p className="text-gray-600 text-sm italic text-center">
-              从家乡汕头到学府广州，每一步都是成长的印记 🏙️
-            </p>
           </div>
 
-          {/* Pets */}
-          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 col-span-1 md:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-orange-100 p-3 rounded-2xl text-orange-500">
+          {/* 4. First Meeting (Sentimental - Span 2) */}
+          <div className="bg-gradient-to-br from-pink-600 via-pink-500 to-rose-400 p-8 rounded-[2.5rem] shadow-2xl text-white md:col-span-2 hover:shadow-rose-200/50 hover:-translate-y-2 transition-all duration-500 group relative overflow-hidden animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '400ms' }}>
+            <div className="absolute right-10 top-10 text-white/10 group-hover:rotate-12 transition-transform duration-700">
+              <Sparkles size={160} />
+            </div>
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-sm">
+                    <Sparkles size={28} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-xl tracking-tight">初次邂逅</h3>
+                    <p className="text-white/70 text-xs uppercase tracking-widest">The First Meeting</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-white/60 text-xs uppercase tracking-widest mb-1 font-bold">时间</p>
+                    <p className="text-2xl font-bold">{personalData.firstMeeting.date}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/60 text-xs uppercase tracking-widest mb-1 font-bold">地点</p>
+                    <p className="text-xl font-bold flex items-center gap-2">
+                      <MapPin size={18} />
+                      {personalData.firstMeeting.location}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="pt-2 md:pt-0">
+                <div className="bg-white/15 p-6 rounded-[2rem] backdrop-blur-md border border-white/10 shadow-inner relative">
+                  <Quote className="absolute -top-3 -left-3 text-white/20 rotate-180" size={32} />
+                  <p className="text-lg italic leading-relaxed font-serif">
+                    {personalData.firstMeeting.remark}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 5. Pets */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-pink-50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '500ms' }}>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="bg-orange-50 p-4 rounded-2xl text-orange-500 group-hover:bg-orange-500 group-hover:text-white transition-colors duration-500">
                 <Cat size={28} />
               </div>
               <div>
-                <h3 className="text-orange-700 font-bold text-xl">宠物伙伴</h3>
-                <p className="text-gray-500 text-sm">咪咪 & 妮妮</p>
+                <h3 className="text-orange-700 font-bold text-xl tracking-tight">宠物伙伴</h3>
+                <p className="text-gray-400 text-xs uppercase tracking-widest">Sweet Companions</p>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {personalData.pets.map(pet => (
                 <button
                   key={pet.name}
                   onClick={() => handlePetClick(pet)}
-                  className="flex-1 bg-orange-50 hover:bg-orange-100 p-4 rounded-2xl transition-colors group text-center"
+                  className="bg-orange-50/50 hover:bg-orange-100 p-4 rounded-[2rem] transition-all duration-300 group/pet text-center hover:shadow-md border border-orange-100/50"
                 >
-                  <div className="text-3xl mb-2 group-hover:scale-110 transition-transform">🐱</div>
-                  <span className="font-bold text-orange-700">{pet.name}</span>
+                  <div className="text-4xl mb-3 group-hover/pet:scale-125 transition-transform duration-500">🐱</div>
+                  <span className="font-bold text-orange-700 block text-lg">{pet.name}</span>
+                  <span className="text-[10px] text-orange-400 uppercase tracking-tighter">View Details</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Cakes */}
-          <div className="bg-white p-8 rounded-3xl shadow-lg border-2 border-pink-100 col-span-1 md:col-span-2 lg:col-span-2">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-pink-100 p-3 rounded-2xl text-pink-500">
+          {/* 6. Cakes (Span 1) */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-pink-50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group lg:col-span-1 animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '600ms' }}>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="bg-pink-50 p-4 rounded-2xl text-pink-500 group-hover:bg-pink-500 group-hover:text-white transition-colors duration-500">
                 <Cake size={28} />
               </div>
               <div>
-                <h3 className="text-pink-700 font-bold text-xl">蛋糕喜好</h3>
-                <p className="text-gray-500 text-sm">甜蜜味道</p>
+                <h3 className="text-pink-700 font-bold text-xl tracking-tight">蛋糕喜好</h3>
+                <p className="text-gray-400 text-xs uppercase tracking-widest">Sweet Cravings</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {personalData.cakes.map(cake => (
                 <button
                   key={cake}
                   onClick={() => handleCakeClick(cake)}
-                  className="px-6 py-3 bg-pink-50 hover:bg-pink-200 text-pink-700 font-medium rounded-full transition-all flex items-center gap-2 hover:shadow-md"
+                  className="px-5 py-2.5 bg-pink-50/50 hover:bg-pink-500 hover:text-white text-pink-700 font-semibold rounded-2xl transition-all duration-300 flex items-center gap-2 hover:shadow-lg hover:scale-105 border border-pink-100/50"
                 >
-                  <span>{cake === '草莓' ? '🍓' : cake === '樱桃' ? '🍒' : cake === '抹茶' ? '🍵' : cake === '葡萄' ? '🍇' : '🫐'}</span>
-                  {cake}
+                  <span className="text-lg">{cake === '草莓' ? '🍓' : cake === '樱桃' ? '🍒' : cake === '抹茶' ? '🍵' : cake === '葡萄' ? '🍇' : '🫐'}</span>
+                  <span className="text-sm">{cake}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* First Meeting */}
-          <div className="bg-gradient-to-br from-pink-500 to-rose-400 p-8 rounded-3xl shadow-xl text-white col-span-1 md:col-span-2 lg:col-span-1 hover:scale-105 transition-transform">
+          {/* 7. Hometown Map (Span 2) */}
+          <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border border-pink-50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 group lg:col-span-2 animate-in fade-in slide-in-from-bottom-10" style={{ animationDelay: '700ms' }}>
             <div className="flex items-center gap-4 mb-6">
-              <div className="bg-white/20 p-3 rounded-2xl">
-                <Sparkles size={28} />
+              <div className="bg-blue-50 p-4 rounded-2xl text-blue-500 group-hover:bg-blue-500 group-hover:text-white transition-colors duration-500">
+                <MapPin size={28} />
               </div>
-              <div>
-                <h3 className="font-bold text-xl">初次邂逅</h3>
-                <p className="text-white/70 text-sm">First Meeting</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-white/60 text-xs uppercase tracking-widest mb-1">时间</p>
-                <p className="text-2xl font-bold">{personalData.firstMeeting.date}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-xs uppercase tracking-widest mb-1">地点</p>
-                <p className="text-xl font-medium flex items-center gap-2">
-                  <MapPin size={18} />
-                  {personalData.firstMeeting.location}
-                </p>
-              </div>
-              <div className="pt-2">
-                <p className="text-sm italic leading-relaxed bg-white/10 p-3 rounded-xl">
-                  “{personalData.firstMeeting.remark}”
-                </p>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-blue-700 font-bold text-xl tracking-tight">籍贯 & 学习</h3>
+                  <div className="bg-blue-50 px-3 py-1 rounded-full text-blue-600 text-[10px] font-bold uppercase tracking-widest">Guangzhou & Shantou</div>
+                </div>
+                <p className="text-gray-400 text-xs mt-1">从家乡汕头到学府广州，每一步都是成长的印记</p>
               </div>
             </div>
-          </div>
-
-          {/* First Heartbeat */}
-          <div className="bg-gradient-to-br from-rose-400 to-pink-500 p-8 rounded-3xl shadow-xl text-white col-span-1 md:col-span-2 lg:col-span-1 hover:scale-105 transition-transform">
-            <div className="flex items-center gap-4 mb-6">
-              <div className="bg-white/20 p-3 rounded-2xl">
-                <Heart size={28} className="fill-white" />
-              </div>
-              <div>
-                <h3 className="font-bold text-xl">心动时刻</h3>
-                <p className="text-white/70 text-sm">Heartbeat Moment</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-white/60 text-xs uppercase tracking-widest mb-1">日期</p>
-                <p className="text-2xl font-bold">{personalData.firstHeartbeat.date}</p>
-              </div>
-              <div className="pt-2">
-                <p className="text-sm italic leading-relaxed bg-white/10 p-3 rounded-xl">
-                  “{personalData.firstHeartbeat.remark}”
-                </p>
-              </div>
+            <div className="relative rounded-3xl overflow-hidden border-4 border-blue-50 shadow-inner">
+              <BirthdayMap />
+              <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-blue-900/10 to-transparent" />
             </div>
           </div>
         </div>
